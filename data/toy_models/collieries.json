@@ -1,0 +1,16 @@
+[
+  {
+    "id": "coll_1",
+    "name": "Girardville Colliery",
+    "lat": 40.79,
+    "lon": -76.28,
+    "production_tons": 1200000
+  },
+  {
+    "id": "coll_2",
+    "name": "Ashland Colliery",
+    "lat": 40.78,
+    "lon": -76.35,
+    "production_tons": 800000
+  }
+]

@@ -1,0 +1,408 @@
+Required Input Data
+1. Stream Segments
+GeoJSON LineString features.
+
+Each segment must have:
+
+    id
+    downstream_id or equivalent link
+    geometry coordinates
+
+Example:
+
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [-76.312, 40.802],
+      [-76.308, 40.799],
+      [-76.301, 40.794]
+    ]
+  },
+  "properties": {
+    "id": "seg_001",
+    "downstream_id": "seg_002",
+    "name": "Tributary A"
+  }
+}
+
+2. Pollution Sources
+JSON list of AMD source points.
+
+Each source must have:
+    id
+    coordinates
+    attach_segment_id
+    emission_rate
+    intensity
+
+Example:
+
+[
+  {
+    "id": "src_001",
+    "name": "AMD Outfall A",
+    "coordinates": [-76.312, 40.802],
+    "attach_segment_id": "seg_001",
+    "emission_rate": 10,
+    "intensity": 0.9,
+    "color": "#ff6b00"
+  }
+]
+3. Simulation Config
+JSON object for tuning parameters.
+
+Example:
+
+{
+  "particleSpeed": 16,
+  "particleLife": 10,
+  "fadeRate": 0.08,
+  "particleSize": 3,
+  "jitter": 0.00005,
+  "maxParticles": 2000,
+  "spawnInterval": 0.2
+}
+Expected Output
+The simulation should produce frame-by-frame particle states for rendering.
+
+Example output:
+
+{
+  "time": 12.4,
+  "particles": [
+    {
+      "id": "p_001",
+      "coordinates": [-76.307, 40.799],
+      "opacity": 0.82,
+      "size": 3.1,
+      "color": "#ff6b00"
+    },
+    {
+      "id": "p_002",
+      "coordinates": [-76.304, 40.797],
+      "opacity": 0.61,
+      "size": 2.8,
+      "color": "#ff6b00"
+    }
+  ]
+}
+
+
+For rendering, this can be converted into:
+
+GeoJSON point features
+
+or direct canvas draw calls
+
+or a custom Mapbox source update
+
+Core Parameters
+Cursor should implement these as configurable values:
+
+particleSpeed
+Controls how fast particles move downstream.
+
+particleLife
+Controls how long a particle remains visible.
+
+fadeRate
+Controls how quickly particles become transparent.
+
+particleSize
+Controls particle radius on screen.
+
+emissionRate
+Controls how many particles each source emits.
+
+jitter
+Adds a very small random offset around the stream path for visual softness.
+
+maxParticles
+Caps performance cost.
+
+spawnInterval
+Controls emission frequency.
+
+Core Simulation Logic
+Step 1: Build Segment Graph
+Create a lookup table from stream segments.
+
+Example:
+
+segmentsById[segmentId] = {
+  id,
+  coordinates,
+  downstreamId
+}
+Step 2: Build Downstream Paths
+For each source, construct an ordered list of connected downstream segments.
+
+Example:
+
+sourcePath = ["seg_001", "seg_002", "seg_004"]
+For MVP, this can be simple:
+
+start at attach_segment_id
+
+follow downstream_id
+
+stop at null or missing segment
+
+Step 3: Spawn Particles
+At each animation tick:
+
+check each source
+
+emit new particles based on emissionRate and spawnInterval
+
+Each particle should store:
+
+source id
+
+segment path
+
+current segment index
+
+distance along segment
+
+age
+
+opacity
+
+color
+
+Step 4: Move Particles
+Each frame:
+
+advance particle distance by particleSpeed * dt
+
+if particle reaches end of segment, move to next segment
+
+if no next segment, kill particle
+
+Step 5: Age and Fade
+Each frame:
+
+increase age
+
+reduce opacity using fadeRate
+
+remove particle if age > life
+
+Step 6: Render
+Each frame:
+
+convert particle positions into renderable map data
+
+update Mapbox source or custom layer
+
+Suggested File Structure
+project/
+├── index.html
+├── style.css
+├── app.js
+├── map/
+│   ├── initMap.js
+│   ├── layers.js
+│   └── renderParticles.js
+├── simulation/
+│   ├── simulationEngine.js
+│   ├── particle.js
+│   ├── sourceManager.js
+│   ├── segmentGraph.js
+│   └── utils.js
+├── data/
+│   ├── stream_segments.geojson
+│   ├── pollution_sources.json
+│   └── simulation_config.json
+└── README.md
+Module Responsibilities
+initMap.js
+initialize Mapbox
+
+add basemap
+
+load stream layer
+
+load source layer
+
+initialize particle render layer
+
+layers.js
+add static stream segments
+
+add source markers
+
+style base map layers
+
+simulationEngine.js
+Main controller for:
+
+setup
+
+update loop
+
+spawning
+
+moving
+
+aging
+
+exposing render state
+
+particle.js
+Particle object definition and update helpers.
+
+sourceManager.js
+load source points
+
+manage emission timing
+
+segmentGraph.js
+parse stream GeoJSON
+
+build segment lookup
+
+build downstream traversal
+
+renderParticles.js
+take particle state
+
+convert to GeoJSON
+
+update Mapbox source every frame
+
+utils.js
+coordinate interpolation
+
+line distance helpers
+
+random jitter
+
+opacity calculations
+
+Rendering Strategy
+Preferred MVP Rendering
+Use a GeoJSON source that updates every frame.
+
+Flow:
+
+particles are updated in JS
+
+particle coordinates are converted to GeoJSON points
+
+update a Mapbox source using setData
+
+draw with a circle layer
+
+This is simple and enough for MVP.
+
+Optional Enhancement
+Use a custom canvas or custom Mapbox layer if performance becomes an issue.
+
+UI Controls
+Implement simple UI controls for:
+
+play
+
+pause
+
+reset
+
+particle speed
+
+emission rate
+
+particle count
+
+fade amount
+
+These can be plain HTML controls.
+
+Implementation Priority
+Phase 1
+initialize map
+
+render stream segments
+
+render source points
+
+Phase 2
+build downstream segment graph
+
+attach source to path
+
+Phase 3
+implement particle spawn and movement
+
+render animated particles
+
+Phase 4
+add fading and jitter
+
+add parameter controls
+
+Phase 5
+clean styling
+
+optimize performance
+
+prepare demo state
+
+Performance Notes
+For MVP:
+
+keep particle count between 500 and 3000
+
+avoid heavy geometry recalculation every frame
+
+precompute downstream segment paths once
+
+reuse particle objects if possible
+
+MVP Definition of Done
+The MVP is complete when:
+
+A Mapbox map loads correctly
+
+Stream segments are visible
+
+AMD source points are visible
+
+Clicking play starts visible downstream particle motion
+
+Particles follow stream geometry
+
+Particles fade over time
+
+Parameters can be adjusted without breaking the app
+
+The result is visually clear enough for thesis demo presentation
+
+Conceptual Framing
+This system should be implemented as a process-based environmental visualization, not as a full predictive simulation.
+
+The visualization should clearly communicate:
+
+AMD originates at source infrastructure
+
+AMD propagates through hydrological networks
+
+pollution is better represented as movement through stream systems than as static polygons
+
+Instruction to Cursor
+Implement a lightweight browser-based AMD flow visualization using Mapbox GL JS.
+
+Use stream segment geometry as the only movement path for particles.
+Do not implement free-form vector field motion.
+Do not build a full physics engine.
+Focus on a clean MVP that is visually strong, easy to tune, and robust enough for demo.
+
+The simulation should run entirely in the frontend, using JavaScript animation and Mapbox rendering.
+The backend is not required for simulation, only for serving static data if needed.
+
+
+
+wind pattern topography soil

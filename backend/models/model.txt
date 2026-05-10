@@ -1,0 +1,83 @@
+---
+config:
+  layout: dagre
+  theme: mc
+  look: classic
+title: Data Object Design for Backend
+---
+classDiagram
+direction LR
+    class GeoEntity {
+	    +string id
+	    +string name
+	    +Geometry geometry
+	    +string[] sourceRefs
+    }
+
+    class CoalUnit {
+	    +string unitCode
+	    +string unitName
+	    +string coalRank
+	    +string formation
+    }
+
+    class Colliery {
+	    +string operator
+	    +string status
+	    +number productionTons
+	    +number openedYear
+	    +number closedYear
+    }
+
+    class MonitoringStation {
+	    +string stationCode
+	    +string agency
+	    +string stationType
+    }
+
+    class WaterQualitySample {
+	    +string sampleId
+	    +string stationId
+	    +string timestamp
+	    +string parameter
+	    +number value
+	    +string unit
+    }
+
+    class StreamSegment {
+	    +string reachId
+	    +string watershedId
+	    +number lengthKm
+	    +string impairedStatus
+	    +string impairmentCause
+    }
+
+    class AMDHarm {
+	    +string harmId
+	    +string label
+	    +string timeWindowStart
+	    +string timeWindowEnd
+	    +string severity
+	    +string[] sourceCollieryIds
+	    +string[] supportingStationIds
+	    +string[] affectedReachIds
+	    +object keyMetrics
+	    +string notes
+	    +summarize(samples)
+	    +toEvidencePacket()
+    }
+
+	<<abstract>> GeoEntity
+
+	note "perhaps we need a subclass for visualizing AMD flow differently"
+
+    GeoEntity <|-- CoalUnit
+    GeoEntity <|-- Colliery
+    GeoEntity <|-- MonitoringStation
+    GeoEntity <|-- StreamSegment
+    MonitoringStation "1" --> "0..*" WaterQualitySample : has
+    CoalUnit "1" --> "0..*" Colliery : contains
+    Colliery "0..*" --> "0..*" AMDHarm : linkedTo / produces
+    AMDHarm "0..*" --> "0..*" MonitoringStation : supportedBy
+    AMDHarm "0..*" --> "0..*" StreamSegment : affects
+    AMDHarm "0..*" --> "0..*" WaterQualitySample : supportedBy (optional)

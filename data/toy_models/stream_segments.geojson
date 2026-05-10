@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "seg_1",
+        "downstream_id": "seg_2",
+        "name": "Upper Schuylkill",
+        "severity": "high"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-76.32, 40.81], [-76.28, 40.80], [-76.25, 40.79]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "seg_2",
+        "downstream_id": null,
+        "name": "Lower Schuylkill",
+        "severity": "medium"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[-76.25, 40.79], [-76.22, 40.78], [-76.18, 40.77]]
+      }
+    }
+  ]
+}

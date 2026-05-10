@@ -1,0 +1,38 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+.vite/
+
+# Environment files (contain secrets — Mapbox token)
+.env
+.env.local
+.env.*.local
+
+# Data pipeline intermediates (~100MB, regenerable from data/ScraperFiles/*.py)
+data/newData/
+
+# Personal narrative drafts — not part of the app
+Phase1/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*~
+
+# Claude Code local state
+.claude/

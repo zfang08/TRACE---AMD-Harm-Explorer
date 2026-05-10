@@ -1,0 +1,10 @@
+{
+  "particleSpeed": 18,
+  "particleLife": 90,
+  "fadeRate": 0.012,
+  "particleSize": 15,
+  "jitter": 0.03,
+  "maxParticles": 1800,
+  "spawnInterval": 0.018
+}
+

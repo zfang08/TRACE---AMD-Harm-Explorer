@@ -1,0 +1,10 @@
+[
+  {
+    "id": "harm_1",
+    "name": "Upper Schuylkill AMD Cluster",
+    "severity": "high",
+    "source_collieries": ["coll_1", "coll_2"],
+    "supporting_stations": ["station_1", "station_2"],
+    "affected_stream_segments": ["seg_1", "seg_2"]
+  }
+]

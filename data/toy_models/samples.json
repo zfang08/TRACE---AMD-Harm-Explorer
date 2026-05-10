@@ -1,0 +1,35 @@
+[
+  {
+    "sample_id": "samp_1",
+    "station_id": "station_1",
+    "timestamp": "2020-06-01T10:00:00Z",
+    "parameter": "pH",
+    "value": 3.2,
+    "unit": ""
+  },
+  {
+    "sample_id": "samp_2",
+    "station_id": "station_1",
+    "timestamp": "2020-06-01T10:00:00Z",
+    "parameter": "Fe",
+    "value": 11.4,
+    "unit": "mg/L"
+  },
+  {
+    "sample_id": "samp_3",
+    "station_id": "station_2",
+    "timestamp": "2020-06-01T10:00:00Z",
+    "parameter": "pH",
+    "value": 4.1,
+    "unit": ""
+  },
+  {
+    "sample_id": "samp_4",
+    "station_id": "station_2",
+    "timestamp": "2020-06-01T10:00:00Z",
+    "parameter": "Fe",
+    "value": 5.2,
+    "unit": "mg/L"
+  }
+]
+

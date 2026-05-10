@@ -1,0 +1,20 @@
+[
+  {
+    "id": "station_1",
+    "name": "Schuylkill Station A",
+    "lat": 40.80,
+    "lon": -76.30,
+    "ph": 3.2,
+    "iron": 11.4,
+    "manganese": 2.1
+  },
+  {
+    "id": "station_2",
+    "name": "Schuylkill Station B",
+    "lat": 40.82,
+    "lon": -76.25,
+    "ph": 4.1,
+    "iron": 5.2,
+    "manganese": 1.0
+  }
+]
