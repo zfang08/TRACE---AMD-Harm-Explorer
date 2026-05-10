@@ -23,6 +23,13 @@ data/newData/
 # Personal narrative drafts — not part of the app
 Phase1/
 
+# Internal design docs / Claude guidance (kept locally, not published)
+CLAUDE.md
+ProjectPlan.md
+SIMULATION.md
+SIMULATION_IMPLEMENTATION_PLAN.md
+simulation.text
+
 # OS junk
 .DS_Store
 Thumbs.db
