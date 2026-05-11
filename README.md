@@ -13,9 +13,9 @@ It joins five public datasets — PA DEP coal mine permits, PA DEP AML inventory
 USGS NHD high-resolution flowlines, USGS NWIS gauging sites, EPA Water Quality
 Portal samples — into 538 *harm objects*, each a self-contained "evidence
 packet" describing one AMD discharge, the mines that feed it, the river chain
-it pollutes, and the monitoring stations that document the impact. A small
-particle simulation visualizes the advection-diffusion of pollution along
-each downstream chain.
+it pollutes, and the monitoring stations that document the impact. A Lagrangian particle simulation visualizes the advection-diffusion of
+pollution along each downstream chain, with support for up to 30 simultaneous
+AMD sources in a shared particle budget.
 
 The audience is investigators, regulators, journalists, and students who want
 a one-screen, drill-down view of where the worst AMD pollution is — not a
@@ -418,6 +418,7 @@ frontend/src/
 | --- | --- | --- |
 | **Selection** | `analysisFocus = { kind, id } \| null`, `selectedHarmId` | `analysisFocus` is the primary selection; `selectedHarmId` is a drill-down on top of it. Panels render based on both. |
 | **View toggles** | `is3D`, `vizColliery`, `vizAmd`, `simulating`, `visibleLayers`, `introVisible`, `sidebarCollapsed` | All independent; the camera tilt is decoupled from the heatmap/extrusion visibility (one of the more important UX decisions in the project). |
+| **Multi-source sim** | `extraSourceIds`, `addMode` | `extraSourceIds` is the ordered list of extra AMD sources added on top of the anchor. `addMode` redirects map clicks from focus-switching to source toggling. Both are reset on focus change. |
 | **Prefetch** | `searchIndex` (slim), `allHarms` (full) | Loaded once on mount; powers search and Top-K useMemos. |
 
 Selection mutators always reset interrelated state in the same render to
@@ -443,6 +444,7 @@ colliery-heatmap-layer    (heatmap, red, weight = score)
 amd-heatmap-layer         (heatmap, orange, weight = severity)
 particles-glow-layer      (circle, blurred halo)
 particles-layer           (circle, sharp)
+sim-halo-layer            (circle stroke, navy blue, AMD sources in active simulation)
 collieries-layer          (symbol, house icon by status)
 stations-layer            (symbol, diamond icon by source count)
 pollution-sources-layer   (symbol, droplet icon by severity)
@@ -505,8 +507,13 @@ Implementation notes:
   `attach_segment_id` is the *nearest* segment, not that the source is at
   that segment's start. We use `projectOntoPolyline()` to compute the
   along-chain meters at which to spawn.
-- **One source at a time.** Particles only run when `analysisFocus.kind === "pollution_source"`
-  (which is the focus a HarmPanel sets when entered).
+- **Multi-source mode.** After clicking "▶ Simulate transport", the user can
+  enable **Add mode** to click additional AMD discharge points on the map and
+  add them to the simulation (up to `MAX_SIM_SOURCES = 30`). Each extra
+  source gets a navy-blue halo ring and appears as a removable chip in the
+  SimulateBlock UI. The anchor (the currently focused source) cannot be
+  removed. Sources are added/removed incrementally without restarting the loop
+  — in-flight particles from existing sources continue uninterrupted.
 - **Color = `progress` interpolated** from the source's severity color (e.g.
   `#7f1d1d` for extreme) at the spawn point to slate `#94a3b8` at the chain
   end; opacity follows `mass`.
@@ -515,9 +522,15 @@ Tunables live in `MapView.jsx` near the top:
 
 ```js
 const PARTICLE_PHYSICS  = { u: 380, D: 8000, k: 0.012, jitterSigma: 25 };
-const PARTICLE_DEFAULTS = { maxParticles: 1800, particleSize: 2.2,
-                            particleLife: 90, emissionGain: 8, ... };
+const PARTICLE_DEFAULTS = { maxParticles: 4500, particleSize: 2.2,
+                            particleLife: 90, emissionGain: 8,
+                            emissionMin: 8, emissionMax: 100, ... };
 ```
+
+**Multi-source mode**: when extras are added, the `maxParticles` budget (4500)
+is split proportionally across all active sources each frame. Each particle
+carries its source's `hotColor` so different chains render in distinct red
+shades as they converge downstream.
 
 The model is a deliberate visual aid — *not* a hydrology simulator. Don't
 quote particle counts as concentration estimates.
@@ -682,8 +695,9 @@ Not built (deliberately or yet):
 - **Acidity ÷ Alkalinity net-acid scoring** — the per-station summaries
   carry both, but severity classification still uses absolute Acidity
   threshold. Net acid would be more diagnostic.
-- **Multi-source particle simulation** — only the focused source runs
-  particles. Showing all 538 simultaneously is a fps cliff.
+- **Full 538-source simultaneous simulation** — the multi-source mode supports
+  up to 30 sources at once with a shared particle budget of 4500; running all
+  538 simultaneously would be a fps cliff and is not exposed in the UI.
 - **HUC8 watershed polygons** — not in any current dataset; would let us
   draw colored basins.
 - **Time-aware filtering** — `harms.json` carries `time_window` per harm

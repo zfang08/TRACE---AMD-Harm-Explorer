@@ -93,11 +93,11 @@ function StationPanel({ station, onHarmSelect }) {
   }, [station?.id, characteristic]);
 
   return (
-    <div style={{ padding: 16, fontSize: 13 }}>
+    <div style={{ padding: 14, fontSize: 11.5 }}>
       <h2
         style={{
           margin: 0,
-          fontSize: 15,
+          fontSize: 13.5,
           fontWeight: 500,
           color: "#0f172a",
           lineHeight: 1.4,
@@ -108,8 +108,8 @@ function StationPanel({ station, onHarmSelect }) {
       </h2>
       <p
         style={{
-          margin: "4px 0 0",
-          fontSize: 11,
+          margin: "5px 0 0",
+          fontSize: 10,
           fontStyle: "italic",
           color: "#94a3b8",
         }}
@@ -121,9 +121,9 @@ function StationPanel({ station, onHarmSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "4px 12px",
-          fontSize: 12.5,
-          marginTop: 12,
+          gap: "6px 12px",
+          fontSize: 11,
+          marginTop: 14,
         }}
       >
         <strong style={{ color: "#475569" }}>Type</strong>
@@ -159,15 +159,15 @@ function StationPanel({ station, onHarmSelect }) {
       </div>
 
       {availableChars.length > 0 ? (
-        <div style={{ marginTop: 18 }}>
+        <div style={{ marginTop: 20 }}>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: 700,
               color: "#475569",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              marginBottom: 8,
+              marginBottom: 10,
               display: "flex",
               alignItems: "center",
               gap: 8,
@@ -178,7 +178,7 @@ function StationPanel({ station, onHarmSelect }) {
               value={characteristic || ""}
               onChange={(e) => setCharacteristic(e.target.value)}
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 padding: "2px 6px",
                 borderRadius: 4,
                 border: "1px solid rgba(15,23,42,0.2)",
@@ -197,11 +197,11 @@ function StationPanel({ station, onHarmSelect }) {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 22 }}>
             <Sparkline
               samples={samples}
-              width={260}
-              height={70}
+              width={232}
+              height={62}
               unitLabel={getChartUnit(characteristic || "")}
             />
           </div>
@@ -210,12 +210,12 @@ function StationPanel({ station, onHarmSelect }) {
 
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 600,
           color: "#475569",
           letterSpacing: "0.14em",
           textTransform: "uppercase",
-          marginTop: 14,
+          marginTop: 16,
         }}
       >
         Linked AMD harms{" "}
@@ -227,9 +227,10 @@ function StationPanel({ station, onHarmSelect }) {
         <p
           style={{
             color: "#94a3b8",
-            fontSize: 12,
+            fontSize: 11,
             fontStyle: "italic",
             marginTop: 8,
+            lineHeight: 1.55,
           }}
         >
           This station is not on any AMD harm’s downstream chain.
@@ -251,9 +252,9 @@ function StationPanel({ station, onHarmSelect }) {
                     background: "transparent",
                     border: "1px solid rgba(15,23,42,0.12)",
                     borderRadius: 6,
-                    padding: "5px 8px",
+                    padding: "6px 9px",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 11,
                     textAlign: "left",
                     fontFamily: "inherit",
                   }}
@@ -265,7 +266,7 @@ function StationPanel({ station, onHarmSelect }) {
                       color: SEVERITY_FG[sev] || "#ffffff",
                       padding: "2px 6px",
                       borderRadius: 3,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: 700,
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",

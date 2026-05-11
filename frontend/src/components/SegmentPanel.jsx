@@ -40,10 +40,11 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
     return (
       <div
         style={{
-          padding: 16,
+          padding: 14,
           color: "#94a3b8",
-          fontSize: 12,
+          fontSize: 11,
           fontStyle: "italic",
+          lineHeight: 1.55,
         }}
       >
         No properties for this segment yet — streams layer still loading.
@@ -57,11 +58,11 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
   });
 
   return (
-    <div style={{ padding: 16, fontSize: 13 }}>
+    <div style={{ padding: 14, fontSize: 11.5 }}>
       <h2
         style={{
           margin: 0,
-          fontSize: 15,
+          fontSize: 13.5,
           fontWeight: 500,
           color: "#0f172a",
           lineHeight: 1.4,
@@ -76,8 +77,8 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
       </h2>
       <p
         style={{
-          margin: "4px 0 0",
-          fontSize: 11,
+          margin: "5px 0 0",
+          fontSize: 10,
           fontStyle: "italic",
           color: "#94a3b8",
         }}
@@ -89,9 +90,9 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "4px 12px",
-          fontSize: 12.5,
-          marginTop: 12,
+          gap: "6px 12px",
+          fontSize: 11,
+          marginTop: 14,
         }}
       >
         <strong style={{ color: "#475569" }}>HUC8</strong>
@@ -112,12 +113,12 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
 
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 600,
           color: "#475569",
           letterSpacing: "0.14em",
           textTransform: "uppercase",
-          marginTop: 18,
+          marginTop: 20,
         }}
       >
         Harms passing through{" "}
@@ -130,9 +131,10 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
         <p
           style={{
             color: "#94a3b8",
-            fontSize: 12,
+            fontSize: 11,
             fontStyle: "italic",
             marginTop: 8,
+            lineHeight: 1.55,
           }}
         >
           No AMD harms flow through this reach (outside any 20 km downstream
@@ -155,9 +157,9 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
                     background: "transparent",
                     border: "1px solid rgba(15,23,42,0.12)",
                     borderRadius: 6,
-                    padding: "5px 8px",
+                    padding: "6px 9px",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 11,
                     textAlign: "left",
                     fontFamily: "inherit",
                   }}
@@ -169,7 +171,7 @@ function SegmentPanel({ segmentProperties, onHarmSelect }) {
                       color: SEVERITY_FG[sev] || "#ffffff",
                       padding: "2px 6px",
                       borderRadius: 3,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: 700,
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",

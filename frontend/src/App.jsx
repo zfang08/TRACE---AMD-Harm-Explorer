@@ -6,6 +6,7 @@ import Sidebar from "./components/Sidebar";
 import {
   getCollieries,
   getHarms,
+  getPollutionSources,
   getRelatedIds,
   getStations,
 } from "./services/api";
@@ -21,6 +22,8 @@ const EMPTY_RELATED = {
 // Top-K ranking 用：严重度权重
 const SEVERITY_WEIGHT = { extreme: 4, high: 3, medium: 2, low: 1 };
 const TOP_K = 8;
+// 多源粒子模拟最大同时参与的 AMD 数（含 anchor）。粒子总预算在 MapView 控制。
+const MAX_SIM_SOURCES = 30;
 
 function App() {
   // analysisFocus = { kind: "colliery"|"station"|"pollution_source"|"segment", id }
@@ -49,6 +52,12 @@ function App() {
   const [vizColliery, setVizColliery] = useState(true);
   const [vizAmd, setVizAmd] = useState(true);
 
+  // 多源粒子模拟：anchor = analysisFocus.id (kind=pollution_source)，
+  // extraSourceIds = 用户在 SimulateBlock 里勾选的额外 AMD 源 id。
+  // addMode 打开时，地图上点 AMD 不再切换 focus，而是 toggle 进 extras。
+  const [extraSourceIds, setExtraSourceIds] = useState([]);
+  const [addMode, setAddMode] = useState(false);
+
   // 全局 prefetch：搜索 / 计数 / SegmentPanel 都要拿这 3 个 list
   const [searchIndex, setSearchIndex] = useState({
     collieries: [],
@@ -57,10 +66,17 @@ function App() {
   });
   // 完整 harm list（带 source_collieries / key_metrics），Top-K 计算用
   const [allHarms, setAllHarms] = useState([]);
+  // 全量 pollution sources：SimulateBlock 渲染 chip 需要拿到 name/severity/lat-lon
+  const [allSources, setAllSources] = useState([]);
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getCollieries(), getStations(), getHarms()])
-      .then(([collieries, stations, harms]) => {
+    Promise.all([
+      getCollieries(),
+      getStations(),
+      getHarms(),
+      getPollutionSources(),
+    ])
+      .then(([collieries, stations, harms, sources]) => {
         if (cancelled) return;
         setSearchIndex({
           collieries: collieries || [],
@@ -72,12 +88,35 @@ function App() {
           })),
         });
         setAllHarms(harms || []);
+        setAllSources(sources || []);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // sourceId → { id, name, latitude, longitude, severity } lookup
+  // SimulateBlock 渲染 chip 用；severity 来自 harms（source 自己没存）。
+  const sourceById = useMemo(() => {
+    const sevByPid = new Map();
+    for (const h of allHarms) {
+      if (h?.pollution_source_id && h?.severity) {
+        sevByPid.set(h.pollution_source_id, h.severity);
+      }
+    }
+    const m = new Map();
+    for (const s of allSources) {
+      m.set(s.id, {
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        severity: sevByPid.get(s.id) || null,
+      });
+    }
+    return m;
+  }, [allSources, allHarms]);
 
   // 全量带 score 和 lat/lon 的 colliery 排行——给 3D extrusion + sidebar Top-K 共用
   const scoredCollieries = useMemo(() => {
@@ -178,17 +217,22 @@ function App() {
   // 切换 / 退出 focus 时同步清空 relatedIds + 关闭 simulation——避免 React 渲染
   // 顺序导致 MapView 的 paint effect 用"新 focus + 上一个 entity 的 relatedIds"
   // 画一帧；同时切换实体时模拟应该重置回未启动状态。
+  // 多源 sim 的 extraSourceIds / addMode 也一并清掉：换 anchor 就换新一组。
   const focus = (kind, id) => {
     setAnalysisFocus({ kind, id });
     setSelectedHarmId(null);
     setRelatedIds(EMPTY_RELATED);
     setSimulating(false);
+    setExtraSourceIds([]);
+    setAddMode(false);
   };
   const exitFocus = () => {
     setAnalysisFocus(null);
     setSelectedHarmId(null);
     setRelatedIds(EMPTY_RELATED);
     setSimulating(false);
+    setExtraSourceIds([]);
+    setAddMode(false);
   };
   const enterHarm = (harmId) => {
     const sourceId = (harmId || "").replace(/^harm-/, "");
@@ -198,7 +242,83 @@ function App() {
     setSelectedHarmId(harmId);
     setRelatedIds(EMPTY_RELATED);
     setSimulating(false);
+    setExtraSourceIds([]);
+    setAddMode(false);
   };
+
+  // simulationSourceIds = anchor + extras（去重 + 30 上限）。
+  // 没 anchor 就是空：粒子完全不跑。
+  const simulationSourceIds = useMemo(() => {
+    if (analysisFocus?.kind !== "pollution_source") return [];
+    const anchor = analysisFocus.id;
+    const list = [anchor];
+    for (const id of extraSourceIds) {
+      if (id !== anchor && list.length < MAX_SIM_SOURCES) list.push(id);
+    }
+    return list;
+  }, [analysisFocus, extraSourceIds]);
+
+  // 多源高亮：后端 getRelatedIds 只针对 anchor，extras 的下游 / 源矿井 / 监测站
+  // 也要并进同一个 relatedIds 集合让 MapView 的 paint 表达式一并 highlight。
+  // 直接从 allHarms 客户端 join，不再多 N 次 HTTP。
+  const extendedRelatedIds = useMemo(() => {
+    if (analysisFocus?.kind !== "pollution_source") return relatedIds;
+    if (extraSourceIds.length === 0) return relatedIds;
+
+    const harmsByPid = new Map();
+    for (const h of allHarms) {
+      if (h?.pollution_source_id) harmsByPid.set(h.pollution_source_id, h);
+    }
+
+    const segIds = new Set(relatedIds.segment_ids || []);
+    const collIds = new Set(relatedIds.colliery_ids || []);
+    const stnIds = new Set(relatedIds.station_ids || []);
+    const psIds = new Set(relatedIds.pollution_source_ids || []);
+    const harmIds = new Set(relatedIds.harm_ids || []);
+
+    for (const sid of extraSourceIds) {
+      const h = harmsByPid.get(sid);
+      if (!h) continue;
+      for (const s of h.affected_streams || []) {
+        if (s?.id) segIds.add(s.id);
+      }
+      for (const c of h.source_collieries || []) {
+        if (c?.id) collIds.add(c.id);
+      }
+      for (const s of h.stations || []) {
+        if (s?.id) stnIds.add(s.id);
+      }
+      psIds.add(sid);
+      if (h.id) harmIds.add(h.id);
+    }
+
+    return {
+      segment_ids: Array.from(segIds),
+      colliery_ids: Array.from(collIds),
+      station_ids: Array.from(stnIds),
+      pollution_source_ids: Array.from(psIds),
+      harm_ids: Array.from(harmIds),
+    };
+  }, [analysisFocus, extraSourceIds, relatedIds, allHarms]);
+
+  // 地图上点了一个 AMD（在 addMode 下）→ toggle 进 extras 集合。
+  // 不能 toggle 掉 anchor（anchor 是 focus 本身，要换 anchor 得点别处或 exit）。
+  const toggleSourceInSim = (id) => {
+    if (!id) return;
+    if (analysisFocus?.kind !== "pollution_source") return;
+    if (id === analysisFocus.id) return;
+    setExtraSourceIds((cur) => {
+      if (cur.includes(id)) return cur.filter((x) => x !== id);
+      // anchor 占一位 → extras 上限是 MAX-1
+      if (cur.length + 1 >= MAX_SIM_SOURCES) return cur;
+      return [...cur, id];
+    });
+  };
+  // SimulateBlock 的 chip × 按钮调用：只能移除 extras，不能移 anchor。
+  const removeExtraSource = (id) => {
+    setExtraSourceIds((cur) => cur.filter((x) => x !== id));
+  };
+  const toggleAddMode = () => setAddMode((v) => !v);
 
   const counts = {
     collieries: searchIndex.collieries.length,
@@ -219,7 +339,7 @@ function App() {
       <MapView
         visibleLayers={visibleLayers}
         analysisFocus={analysisFocus}
-        relatedIds={relatedIds}
+        relatedIds={extendedRelatedIds}
         onFocus={focus}
         onExitFocus={exitFocus}
         orbit={introVisible}
@@ -229,6 +349,10 @@ function App() {
         scoredAmdSources={scoredAmdSources}
         vizColliery={vizColliery}
         vizAmd={vizAmd}
+        simulationSourceIds={simulationSourceIds}
+        extraSourceIds={extraSourceIds}
+        addMode={addMode}
+        onToggleSourceInSim={toggleSourceInSim}
       />
 
       {introVisible ? (
@@ -265,6 +389,13 @@ function App() {
             vizAmd={vizAmd}
             onToggleVizColliery={() => setVizColliery((v) => !v)}
             onToggleVizAmd={() => setVizAmd((v) => !v)}
+            simulationSourceIds={simulationSourceIds}
+            extraSourceIds={extraSourceIds}
+            sourceById={sourceById}
+            addMode={addMode}
+            onToggleAddMode={toggleAddMode}
+            onRemoveExtraSource={removeExtraSource}
+            maxSimSources={MAX_SIM_SOURCES}
           />
         </>
       ) : null}

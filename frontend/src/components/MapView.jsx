@@ -3,7 +3,6 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
   getCollieries,
-  getHarmById,
   getHarms,
   getPollutionSources,
   getStations,
@@ -36,6 +35,9 @@ const COLL_HEATMAP_SOURCE_ID = "colliery-heatmap-source";
 const COLL_HEATMAP_LAYER_ID = "colliery-heatmap-layer";
 const AMD_HEATMAP_SOURCE_ID = "amd-heatmap-source";
 const AMD_HEATMAP_LAYER_ID = "amd-heatmap-layer";
+// 多源 sim：参与模拟的 AMD 在地图上画一圈白色光环以示"已加入"
+const SIM_HALO_SOURCE_ID = "sim-halo-source";
+const SIM_HALO_LAYER_ID = "sim-halo-layer";
 
 // 3D 柱：半径 200m（远视图也看得见），高度 = score × 80
 const EXTRUDE_RADIUS_M = 200;
@@ -145,7 +147,9 @@ const PARTICLE_PHYSICS = {
 };
 
 const PARTICLE_DEFAULTS = {
-  maxParticles: 1800, // 同屏粒子数 ×3：从 cloud 变 plume 视觉
+  // 多源模式下粒子总预算共享。单源时 ~1800 已经够"plume"感；多源时拉到 4500
+  // 让 30 个源各自能维持 ~100 粒子的可见密度而不内卷。
+  maxParticles: 4500,
   particleSize: 2.2, // 单粒子明显变小，让密度成主视觉而非个体
   particleLife: 90,
   emissionGain: 8, // spawn rate 压缩系数（继续上调）
@@ -391,15 +395,33 @@ function MapView({
   scoredAmdSources,
   vizColliery,
   vizAmd,
+  simulationSourceIds,
+  extraSourceIds,
+  addMode,
+  onToggleSourceInSim,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const popupRef = useRef(null);
   // 把最新的 callback / state 同步到 ref，方便 click handler 闭包始终读到 fresh 值
-  const cbRef = useRef({ onFocus, onExitFocus });
+  // analysisFocus 也进 ref：click handler 要根据当前 focus kind 决定 stream click 是
+  // 切到 segment 还是当成"空白"退出。
+  const cbRef = useRef({
+    onFocus,
+    onExitFocus,
+    onToggleSourceInSim,
+    addMode,
+    analysisFocus,
+  });
   useEffect(() => {
-    cbRef.current = { onFocus, onExitFocus };
-  }, [onFocus, onExitFocus]);
+    cbRef.current = {
+      onFocus,
+      onExitFocus,
+      onToggleSourceInSim,
+      addMode,
+      analysisFocus,
+    };
+  }, [onFocus, onExitFocus, onToggleSourceInSim, addMode, analysisFocus]);
   // 加载完毕的标志——用 state 不用 ref：让分析 paint 的 useEffect 能在
   // "图层刚注册完"这个变化上自动重跑一次。否则用户在 loadAll 完成前点击就会
   // 永远看不到第一次的高亮（要再点一次触发 analysisFocus 重新变化才行）。
@@ -414,15 +436,13 @@ function MapView({
   });
 
   // 粒子流状态——全部 mutate in place 避免 re-render
+  // 多源版：sources 是 sourceId → { polyline, hotColor, emissionRate, spawnDist,
+  // spawnAcc } 的 Map；particles 每个带 sourceId，渲染/物理时按 source 查参数。
   const simRef = useRef({
     segmentsById: null,
     active: false,
-    polyline: null,
-    hotColor: PARTICLE_HOT_COLOR.DEFAULT,
-    emissionRate: 6,
-    spawnDist: 0, // 沿 polyline 米数 — source 投影位置
+    sources: new Map(),
     particles: [],
-    spawnAcc: 0,
     lastT: null,
     raf: null,
   });
@@ -451,7 +471,8 @@ function MapView({
       zoom: 8,
     });
     mapRef.current = map;
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    // top-right 已经被 LayerControlPanel 占了，挪到 bottom-right 错开
+    map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
     popupRef.current = new mapboxgl.Popup({
       closeButton: false,
@@ -495,11 +516,17 @@ function MapView({
         }
 
         // 聚焦 zoom-in effect 要用——按 id 查 entity 坐标
+        // harmsByPid 给多源 sim 用：避免 N 个 source 时一次 fetch N 个 harm
+        const harmsByPid = new Map();
+        for (const h of harms || []) {
+          if (h?.pollution_source_id) harmsByPid.set(h.pollution_source_id, h);
+        }
         dataRefs.current = {
           collieries: collieries || [],
           stations: stations || [],
           sources: sources || [],
           streamsGeoJSON,
+          harmsByPid,
         };
 
         // 粒子流要用 segmentsById lookup（一次性 build，loadAll 阶段做完最快）
@@ -592,7 +619,7 @@ function MapView({
               source: STREAM_SOURCE_ID,
               paint: {
                 "line-color": "#94a3b8", // slate-400 muted
-                "line-width": 1.4,
+                "line-width": 1.1,
                 "line-opacity": 0.45,
               },
             });
@@ -605,7 +632,7 @@ function MapView({
               filter: ["==", ["get", "id"], "_none_"],
               paint: {
                 "line-color": "#334155", // slate-700
-                "line-width": 3,
+                "line-width": 2.4,
               },
             });
           }
@@ -744,7 +771,7 @@ function MapView({
             );
           }
 
-          // collieries — symbol 方块图标
+          // collieries — symbol 方块图标。TV 显示尺寸：整体 ~0.72× 缩小。
           if (!map.getSource(COLL_SOURCE_ID)) {
             map.addSource(COLL_SOURCE_ID, { type: "geojson", data: collieryFC });
             map.addLayer({
@@ -753,7 +780,7 @@ function MapView({
               source: COLL_SOURCE_ID,
               layout: {
                 "icon-image": COLLIERY_ICON_EXPR,
-                "icon-size": 0.7,
+                "icon-size": 0.5,
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true,
               },
@@ -772,7 +799,7 @@ function MapView({
               source: STATION_SOURCE_ID,
               layout: {
                 "icon-image": STATION_ICON_EXPR,
-                "icon-size": 0.55,
+                "icon-size": 0.4,
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true,
               },
@@ -791,13 +818,37 @@ function MapView({
               source: SRC_SOURCE_ID,
               layout: {
                 "icon-image": SOURCE_ICON_EXPR,
-                "icon-size": 0.8,
+                "icon-size": 0.58,
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true,
                 // 水滴顶尖向下（默认朝上），不旋转 —— 我画的就是 pointing-down
               },
               paint: { "icon-opacity": 0.95 },
             });
+          }
+
+          // sim halo：参与模拟的 AMD（anchor + extras）统一用一个鲜亮色。
+          // navy blue-900 #1e3a8a，跟 cream 底色高对比，比浅蓝沉稳。
+          if (!map.getSource(SIM_HALO_SOURCE_ID)) {
+            map.addSource(SIM_HALO_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer(
+              {
+                id: SIM_HALO_LAYER_ID,
+                type: "circle",
+                source: SIM_HALO_SOURCE_ID,
+                paint: {
+                  "circle-radius": 12,
+                  "circle-color": "rgba(30, 58, 138, 0.12)",
+                  "circle-stroke-color": "#1e3a8a",
+                  "circle-stroke-width": 2.4,
+                  "circle-stroke-opacity": 0.95,
+                },
+              },
+              SRC_LAYER_ID,
+            );
           }
 
           // particles — Lagrangian advection-diffusion 解的可视化。插在 COLL
@@ -857,6 +908,7 @@ function MapView({
 
           // ============ 全局 click：用 queryRenderedFeatures 派发 ============
           map.on("click", (e) => {
+            const isAddMode = !!cbRef.current.addMode;
             const layers = [
               SRC_LAYER_ID,
               COLL_LAYER_ID,
@@ -872,6 +924,29 @@ function MapView({
             const id = f.properties?.id;
             if (!id) return;
             const layerId = f.layer?.id;
+
+            // addMode 下：只接受 AMD 点击（进/出 extras）；station/colliery/
+            // stream 一律忽略，避免用户在策展 sim 时被意外切焦干扰。
+            if (isAddMode) {
+              if (layerId === SRC_LAYER_ID) {
+                cbRef.current.onToggleSourceInSim?.(id);
+              }
+              return;
+            }
+
+            // 已经在 pollution_source / colliery / station 分析模式时，点 stream
+            // 通常是误击高亮链（active-path 的粗黑线视觉上像 marker 的延伸），
+            // 用户预期是 reset 而不是切到 SegmentPanel。直接 exit。
+            const focusKind = cbRef.current.analysisFocus?.kind;
+            if (
+              layerId === STREAM_LAYER_ID &&
+              focusKind &&
+              focusKind !== "segment"
+            ) {
+              cbRef.current.onExitFocus?.();
+              return;
+            }
+
             const fn = cbRef.current.onFocus;
             if (!fn) return;
             if (layerId === COLL_LAYER_ID) fn("colliery", id);
@@ -896,6 +971,7 @@ function MapView({
           }
           function hidePopup() {
             if (!popup) return;
+            // 恢复到全局默认 cursor（crosshair，CSS 里定义）
             map.getCanvas().style.cursor = "";
             popup.remove();
           }
@@ -1022,6 +1098,32 @@ function MapView({
     heat.setData({ type: "FeatureCollection", features });
   }, [scoredAmdSources, layersReady]);
 
+  // ============= 2d. simulationSourceIds 变化 → 刷 halo layer =====
+  // 参与模拟的每个 AMD 一个 Point feature，anchor=1 标记 anchor 用不同色描边。
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady) return;
+    const halo = map.getSource(SIM_HALO_SOURCE_ID);
+    if (!halo) return;
+    const ids = simulationSourceIds || [];
+    const anchorId = ids[0];
+    const sourceById = new Map();
+    for (const s of dataRefs.current.sources || []) sourceById.set(s.id, s);
+    const features = [];
+    for (const id of ids) {
+      const s = sourceById.get(id);
+      if (!s) continue;
+      if (typeof s.longitude !== "number" || typeof s.latitude !== "number")
+        continue;
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [s.longitude, s.latitude] },
+        properties: { id, anchor: id === anchorId ? 1 : 0 },
+      });
+    }
+    halo.setData({ type: "FeatureCollection", features });
+  }, [simulationSourceIds, layersReady]);
+
   // ============= 3. visibleLayers 切换 → setLayoutProperty =============
   // 依赖 layersReady 确保图层注册完之后再跑（用户在加载期间切 toggle 也能生效）
   useEffect(() => {
@@ -1041,6 +1143,8 @@ function MapView({
     setVis(AMD_HEATMAP_LAYER_ID, !!vizAmd);
     setVis(STATION_LAYER_ID, visibleLayers.stations);
     setVis(SRC_LAYER_ID, visibleLayers.sources);
+    // halo 跟 source 图层联动：用户隐藏 AMD 时光环也应该一起隐
+    setVis(SIM_HALO_LAYER_ID, visibleLayers.sources);
     setVis(STREAM_LAYER_ID, visibleLayers.streams);
     setVis(ACTIVE_PATH_LAYER_ID, visibleLayers.streams);
   }, [visibleLayers, layersReady, vizColliery, vizAmd]);
@@ -1066,10 +1170,15 @@ function MapView({
       // 排除——它们只是恰好和被点中的 entity 共享 harm，并不是用户想看的"这个
       // entity 的影响范围"。Sibling 信息已经在 sidebar 的 harm 列表里反映了。
       // Segment 例外：河链是分析模式的核心可视化，必须保留。
+      //
+      // 多源 sim 例外：用户显式选进 extras 的 AMD 不算 sibling，要按 "related"
+      // 高亮（不然刚加的源会瞬间被 dim 到 0.4 opacity，跟"已选中"完全相反）。
       const relColl = focusKind === "colliery" ? [] : r.colliery_ids || [];
       const relStn = focusKind === "station" ? [] : r.station_ids || [];
       const relSrc =
-        focusKind === "pollution_source" ? [] : r.pollution_source_ids || [];
+        focusKind === "pollution_source"
+          ? extraSourceIds || []
+          : r.pollution_source_ids || [];
       const relSeg = r.segment_ids || [];
 
       // collieries (symbol layer：方块图标)
@@ -1085,7 +1194,7 @@ function MapView({
           sizeExpr(
             collFocus,
             relColl,
-            { sel: 1.5, rel: 1.0, dim: 0.45, browse: 0.7 },
+            { sel: 1.1, rel: 0.72, dim: 0.32, browse: 0.5 },
             isAnalysis,
           ),
         );
@@ -1103,7 +1212,7 @@ function MapView({
           sizeExpr(
             stFocus,
             relStn,
-            { sel: 1.3, rel: 0.85, dim: 0.35, browse: 0.55 },
+            { sel: 0.95, rel: 0.62, dim: 0.25, browse: 0.4 },
             isAnalysis,
           ),
         );
@@ -1121,7 +1230,7 @@ function MapView({
           sizeExpr(
             srcFocus,
             relSrc,
-            { sel: 1.6, rel: 1.05, dim: 0.4, browse: 0.8 },
+            { sel: 1.15, rel: 0.76, dim: 0.3, browse: 0.58 },
             isAnalysis,
           ),
         );
@@ -1148,15 +1257,45 @@ function MapView({
         }
       }
     };
-    if (map.loaded()) apply();
-    else map.once("load", apply);
-  }, [analysisFocus, relatedIds, layersReady]);
+    // 直接 apply：layersReady=true 保证 layer 已注册，setPaintProperty/
+    // setLayoutProperty/setFilter 都是同步安全调用，跟 map.loaded() 无关。
+    // 之前用 map.once("load", apply) 是个 bug：load 事件只在初次启动时触发一次，
+    // easeTo 期间 map.loaded() 会暂时变 false，apply 就被挂到永远不再触发的
+    // load listener 上，导致退出分析时 marker 不复位。
+    apply();
+  }, [analysisFocus, relatedIds, layersReady, extraSourceIds]);
 
   // ============= 4b. analysisFocus 变化时给一个聚焦 zoom-in 效果 =============
   // splash 页 (orbit) 期间不触发，避免抢镜头；entity 没坐标也不触发。
+  // 退出分析（analysisFocus: 非空 → null）时反向 ease 回 overview，避免用户
+  // 卡在 zoom-11 的近景。prevFocusRef 记录上一次的 focus，用来区分"挂载初始
+  // null"和"刚从分析退出的 null"——前者不该有动画。
+  const prevFocusRef = useRef(null);
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !layersReady || orbit || !analysisFocus) return;
+    if (!map || !layersReady || orbit) {
+      // 不更新 prevFocusRef，等下次条件满足时再做判断
+      return;
+    }
+
+    const prevFocus = prevFocusRef.current;
+    prevFocusRef.current = analysisFocus;
+
+    if (!analysisFocus) {
+      // 只在"刚从分析退出"这一刻 ease 出来，挂载初次 null 不做
+      if (prevFocus) {
+        // 从当前 zoom 后退 ~1.5 级，最低 9.2，避免一下蹦回 overview 太远；
+        // center 不动，让用户保持空间感（"往后退一步"而不是"传送回家"）
+        const currentZoom = map.getZoom();
+        const targetZoom = Math.max(9.2, currentZoom - 1.5);
+        map.easeTo({
+          zoom: targetZoom,
+          duration: 700,
+          easing: (t) => 1 - Math.pow(1 - t, 3),
+        });
+      }
+      return;
+    }
 
     const { kind, id } = analysisFocus;
     const data = dataRefs.current;
@@ -1223,16 +1362,31 @@ function MapView({
         if (raf) cancelAnimationFrame(raf);
       };
     } else {
-      // 退出 splash：1.5s 平滑过渡到主视图。pitch 跟随 is3D：默认 45° 让 3D 柱
-      // 立即可见；用户切到 2D 平视会另一个 effect 单独处理。
+      // 退出 splash → 两段式镜头入场，影院感：
+      //   Phase 1 (0–760ms): 冲近 + bearing 微扭，ease-in 给"推进"的力度；
+      //   Phase 2 (760ms 后): 拉回 overview (zoom 8, bearing 0)，ease-out 收尾。
+      // pitch 跟随 is3D：默认 45° 让 3D 柱可见；2D 状态下 phase 2 拉平。
+      const currentBearing = map.getBearing();
       map.easeTo({
-        pitch: is3D ? 45 : 0,
-        bearing: 0,
-        center: [-76.3, 40.8],
-        zoom: 8,
-        duration: 1500,
-        easing: (t) => 1 - Math.pow(1 - t, 3),
+        center: [-76.15, 40.84],
+        zoom: 10.6,
+        pitch: 64,
+        bearing: currentBearing + 28,
+        duration: 760,
+        easing: (t) => t * t, // ease-in
       });
+      const t2 = setTimeout(() => {
+        if (!mapRef.current) return;
+        map.easeTo({
+          pitch: is3D ? 45 : 0,
+          bearing: 0,
+          center: [-76.3, 40.8],
+          zoom: 8,
+          duration: 1400,
+          easing: (t) => 1 - Math.pow(1 - t, 3), // ease-out cubic
+        });
+      }, 740);
+      return () => clearTimeout(t2);
     }
   }, [orbit, layersReady]);
 
@@ -1247,141 +1401,176 @@ function MapView({
     });
   }, [is3D, layersReady, orbit]);
 
-  // ============= 6. 粒子流：Lagrangian advection-diffusion =============
-  // 选中 pollution_source 时，沿该 source 的 harm 下游链跑粒子模拟：
+  // ============= 6. 粒子流：多源 Lagrangian advection-diffusion =============
+  // simulationSourceIds = [anchor, ...extras]，每个源沿其 harm 下游链跑粒子。
+  // 每帧逐粒子：
   //   dist += u·dt + √(2D·dt)·randn()    — advection + diffusion
   //   mass *= exp(−k·dt)                  — first-order decay
-  // 大量粒子的密度分布近似 PDE 解 C(x, t)。
+  // 所有 source 共享 maxParticles 全局上限；超额时按 desired 比例缩放 spawn。
+  //
+  // 增量同步策略：simulationSourceIds 变化（用户加/减 extras）时只更新 sources
+  // Map，不重置 in-flight 粒子，也不重启 RAF —— 加一个源像"新的水龙头打开"。
   useEffect(() => {
     const map = mapRef.current;
 
-    // ---- helper: 关停 + 清场 ----
     const stop = () => {
       const s = simRef.current;
       if (s.raf) cancelAnimationFrame(s.raf);
       s.raf = null;
       s.active = false;
       s.particles = [];
-      s.spawnAcc = 0;
+      s.sources = new Map();
       s.lastT = null;
-      s.polyline = null;
       const src = map?.getSource?.(PARTICLES_SOURCE_ID);
       if (src) src.setData({ type: "FeatureCollection", features: [] });
     };
 
     if (!RUN_PARTICLE_SIM) return stop();
     if (!map || !layersReady || orbit) return stop();
-    if (analysisFocus?.kind !== "pollution_source") return stop();
-    if (!simulating) return stop(); // 用户没按 simulate
+    if (!simulating) return stop();
+    if (!simulationSourceIds || simulationSourceIds.length === 0) return stop();
     if (!simRef.current.segmentsById) return stop();
+    if (!dataRefs.current.harmsByPid) return stop();
 
-    let cancelled = false;
-    getHarmById(`harm-${analysisFocus.id}`)
-      .then((harm) => {
-        if (cancelled || !harm) return;
-        const segIds = (harm.affected_streams || []).map((seg) => seg.id);
-        if (segIds.length === 0) return stop();
+    const segmentsById = simRef.current.segmentsById;
+    const harmsByPid = dataRefs.current.harmsByPid;
+    const srcById = new Map();
+    for (const s of dataRefs.current.sources || []) srcById.set(s.id, s);
 
-        const polyline = buildPolylineFromPath(
-          segIds,
-          simRef.current.segmentsById,
-        );
-        if (!polyline || polyline.totalMeters < 1) return stop();
+    // 增量构建 next：已经存在的 source 直接复用（保留 spawnAcc/polyline），新
+    // 的现 build。
+    const prev = simRef.current.sources;
+    const next = new Map();
+    for (const sid of simulationSourceIds) {
+      const existing = prev.get(sid);
+      if (existing) {
+        next.set(sid, existing);
+        continue;
+      }
+      const harm = harmsByPid.get(sid);
+      if (!harm) continue;
+      const segIds = (harm.affected_streams || []).map((seg) => seg.id);
+      if (segIds.length === 0) continue;
+      const polyline = buildPolylineFromPath(segIds, segmentsById);
+      if (!polyline || polyline.totalMeters < 1) continue;
 
-        const src = dataRefs.current.sources.find(
-          (x) => x.id === analysisFocus.id,
-        );
-        const rawGpm = src?.emission_rate ?? 6;
-        const compressed =
-          Math.log10(1 + rawGpm) * PARTICLE_DEFAULTS.emissionGain;
-        const emissionRate = Math.max(
-          PARTICLE_DEFAULTS.emissionMin,
-          Math.min(PARTICLE_DEFAULTS.emissionMax, compressed),
-        );
+      const src = srcById.get(sid);
+      const rawGpm = src?.emission_rate ?? 6;
+      const compressed =
+        Math.log10(1 + rawGpm) * PARTICLE_DEFAULTS.emissionGain;
+      const emissionRate = Math.max(
+        PARTICLE_DEFAULTS.emissionMin,
+        Math.min(PARTICLE_DEFAULTS.emissionMax, compressed),
+      );
+      let spawnDist = 0;
+      if (
+        src &&
+        typeof src.longitude === "number" &&
+        typeof src.latitude === "number"
+      ) {
+        spawnDist = projectOntoPolyline(src.longitude, src.latitude, polyline);
+        if (polyline.totalMeters - spawnDist < 1) spawnDist = 0;
+      }
+      next.set(sid, {
+        polyline,
+        hotColor:
+          PARTICLE_HOT_COLOR[harm.severity] ?? PARTICLE_HOT_COLOR.DEFAULT,
+        emissionRate,
+        spawnDist,
+        spawnAcc: 0,
+      });
+    }
 
-        // 用 source 自己的 lat/lon 投影到 polyline 找真实起点（snap_to_segments
-        // 只保证 attach_segment_id 是最近河段，没保证起点位置精确）
-        let spawnDist = 0;
-        if (
-          src &&
-          typeof src.longitude === "number" &&
-          typeof src.latitude === "number"
-        ) {
-          spawnDist = projectOntoPolyline(
-            src.longitude,
-            src.latitude,
-            polyline,
-          );
-          // 防退化：如果投影靠近末端（剩余距离 < 1m），fallback 到 0
-          if (polyline.totalMeters - spawnDist < 1) spawnDist = 0;
-        }
+    if (next.size === 0) return stop();
 
-        // 写入 simRef
-        const s = simRef.current;
-        s.polyline = polyline;
-        s.hotColor =
-          PARTICLE_HOT_COLOR[harm.severity] ?? PARTICLE_HOT_COLOR.DEFAULT;
-        s.emissionRate = emissionRate;
-        s.spawnDist = spawnDist;
-        s.particles = [];
-        s.spawnAcc = 0;
-        s.lastT = null;
-        s.active = true;
+    const st = simRef.current;
+    st.sources = next;
+    // 已被用户移除的 source 上残留的粒子直接丢
+    st.particles = st.particles.filter((p) => next.has(p.sourceId));
+    st.active = true;
 
-        startParticleLoop(map);
-      })
-      .catch(() => stop());
+    if (!st.raf) startParticleLoop(map);
 
+    // 注意：不在 cleanup 里调 stop。每次 chip 加/减 simulationSourceIds 都变身份，
+    // effect 重跑——上面的 guards 已经覆盖了"该停"的所有情况。强制 stop 会让
+    // 加 chip 时整个场景刷掉。
+  }, [layersReady, orbit, simulating, simulationSourceIds]);
+
+  // 卸载时取消 RAF。map 实例的 cleanup 由初始化 effect 负责。
+  useEffect(() => {
     return () => {
-      cancelled = true;
-      stop();
+      const s = simRef.current;
+      if (s.raf) cancelAnimationFrame(s.raf);
+      s.raf = null;
+      s.active = false;
     };
-  }, [analysisFocus, layersReady, orbit, simulating]);
+  }, []);
 
   // ============= 6b. RAF loop helper（不依赖 React 渲染） =============
-  // 暴露成 ref-上的方法不利于阅读，直接写在闭包外。这个函数读 simRef.current
-  // 即可——所有状态 mutation in-place 不触发 re-render。
+  // 全部 mutation in-place 不触发 re-render。每帧遍历 sources spawn、遍历
+  // particles advect、最后一次 setData 把所有粒子打成一个 FeatureCollection。
   function startParticleLoop(map) {
     const s = simRef.current;
     if (s.raf) cancelAnimationFrame(s.raf);
 
     const tick = (now) => {
       const st = simRef.current;
-      if (!st.active || !st.polyline) return;
+      if (!st.active || st.sources.size === 0) {
+        st.raf = null;
+        return;
+      }
       if (st.lastT == null) st.lastT = now;
       const dt = Math.min(0.05, (now - st.lastT) / 1000);
       st.lastT = now;
 
-      const polyline = st.polyline;
       const { u, D, k, jitterSigma } = PARTICLE_PHYSICS;
       const sqrt2Ddt = Math.sqrt(2 * D * dt);
 
-      // -- spawn --
-      st.spawnAcc += st.emissionRate * dt;
-      let spawnN = Math.floor(st.spawnAcc);
-      st.spawnAcc -= spawnN;
-      const room = PARTICLE_DEFAULTS.maxParticles - st.particles.length;
-      if (spawnN > room) spawnN = room > 0 ? room : 0;
-      for (let i = 0; i < spawnN; i += 1) {
-        st.particles.push({
-          dist: st.spawnDist, // 从 source 投影位置开始，不是 polyline 起点
-          lateral: randn() * jitterSigma,
-          mass: 1,
-          age: 0,
-          speedMul:
-            PARTICLE_DEFAULTS.speedJitterMin +
-            Math.random() * PARTICLE_DEFAULTS.speedJitterSpan,
-        });
+      // -- spawn: 各 source 算 desired，总和超 room 时按比例缩放，公平分配 --
+      const desired = new Map();
+      let totalDesired = 0;
+      for (const [sid, src] of st.sources) {
+        src.spawnAcc += src.emissionRate * dt;
+        const n = Math.floor(src.spawnAcc);
+        desired.set(sid, n);
+        totalDesired += n;
+      }
+      const room = Math.max(
+        0,
+        PARTICLE_DEFAULTS.maxParticles - st.particles.length,
+      );
+      const scale =
+        totalDesired > room && totalDesired > 0 ? room / totalDesired : 1;
+
+      for (const [sid, n] of desired) {
+        const src = st.sources.get(sid);
+        if (!src) continue;
+        const actual = Math.floor(n * scale);
+        src.spawnAcc -= actual; // 保留小数余量给下一帧
+        for (let i = 0; i < actual; i += 1) {
+          st.particles.push({
+            sourceId: sid,
+            dist: src.spawnDist,
+            lateral: randn() * jitterSigma,
+            mass: 1,
+            age: 0,
+            speedMul:
+              PARTICLE_DEFAULTS.speedJitterMin +
+              Math.random() * PARTICLE_DEFAULTS.speedJitterSpan,
+          });
+        }
       }
 
       // -- advance + filter --
       const next = [];
       for (const p of st.particles) {
+        const src = st.sources.get(p.sourceId);
+        if (!src) continue; // source 已被移除
         p.dist += u * p.speedMul * dt + sqrt2Ddt * randn();
-        if (p.dist < st.spawnDist) p.dist = st.spawnDist; // 不允许往上游漂回 source 之前
+        if (p.dist < src.spawnDist) p.dist = src.spawnDist;
         p.mass *= Math.exp(-k * dt);
         p.age += dt;
-        if (p.dist > polyline.totalMeters) continue;
+        if (p.dist > src.polyline.totalMeters) continue;
         if (p.mass < 0.02) continue;
         if (p.age > PARTICLE_DEFAULTS.particleLife) continue;
         next.push(p);
@@ -1391,6 +1580,9 @@ function MapView({
       // -- render --
       const features = [];
       for (const p of st.particles) {
+        const src = st.sources.get(p.sourceId);
+        if (!src) continue;
+        const polyline = src.polyline;
         const pt = pointAndTangentAtDistance(polyline, p.dist);
         if (!pt) continue;
         const { point, tangent } = pt;
@@ -1398,30 +1590,31 @@ function MapView({
         const ny = tangent[0];
         const lat = point[1];
         const mPerDegLat = 111320;
-        const mPerDegLon =
-          Math.cos((lat * Math.PI) / 180) * 111320 || 1;
+        const mPerDegLon = Math.cos((lat * Math.PI) / 180) * 111320 || 1;
         const coord = [
           point[0] + (p.lateral / mPerDegLon) * nx,
           point[1] + (p.lateral / mPerDegLat) * ny,
         ];
-        // progress 用 spawnDist→末端 的相对位置，让 hot→cold 颜色梯度从
-        // 真正的源头开始（而不是 polyline 物理起点）
-        const denom = Math.max(1, polyline.totalMeters - st.spawnDist);
-        const progress = Math.min(1, Math.max(0, (p.dist - st.spawnDist) / denom));
+        // progress 用本源 spawnDist→末端 的相对位置，颜色梯度从真正源头开始
+        const denom = Math.max(1, polyline.totalMeters - src.spawnDist);
+        const progress = Math.min(
+          1,
+          Math.max(0, (p.dist - src.spawnDist) / denom),
+        );
         features.push({
           type: "Feature",
           geometry: { type: "Point", coordinates: coord },
           properties: {
             mass: Math.min(1, p.mass),
             progress,
-            hot: st.hotColor,
+            hot: src.hotColor, // 每个粒子带本源的 hot 色：多色汇流可视化
             size: PARTICLE_DEFAULTS.particleSize,
           },
         });
       }
-      const src = map.getSource(PARTICLES_SOURCE_ID);
-      if (src) {
-        src.setData({ type: "FeatureCollection", features });
+      const sourceMb = map.getSource(PARTICLES_SOURCE_ID);
+      if (sourceMb) {
+        sourceMb.setData({ type: "FeatureCollection", features });
       }
 
       st.raf = requestAnimationFrame(tick);

@@ -18,6 +18,14 @@ const PANEL_RADIUS = 10;
 const PANEL_SHADOW =
   "0 1px 2px rgba(15,23,42,0.04), 0 12px 32px rgba(15,23,42,0.10)";
 
+// Width 配额：宽屏（TV）显示，单位 px。展开宽度比之前 320 缩到 272；折叠态
+// 取一个固定宽度（不再用 width:auto），这样 CSS transition 才能丝滑收放。
+const SIDEBAR_WIDTH_EXPANDED = 272;
+const SIDEBAR_WIDTH_COLLAPSED = 92;
+// 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
+const ANIM_MS = 580;
+const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+
 function VizToggle({ on, label, color, hint, onClick }) {
   return (
     <button
@@ -28,14 +36,14 @@ function VizToggle({ on, label, color, hint, onClick }) {
         alignItems: "center",
         gap: 8,
         width: "100%",
-        padding: "8px 10px",
+        padding: "7px 10px",
         marginBottom: 6,
         background: on ? color : "rgba(255,255,255,0.7)",
         color: on ? "#ffffff" : "#1e293b",
         border: `1px solid ${on ? color : "rgba(15,23,42,0.15)"}`,
         borderRadius: 8,
         cursor: "pointer",
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 500,
         letterSpacing: "0.04em",
         transition: "background 150ms ease, color 150ms ease",
@@ -44,14 +52,14 @@ function VizToggle({ on, label, color, hint, onClick }) {
     >
       <span
         style={{
-          width: 14,
-          height: 14,
+          width: 13,
+          height: 13,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           border: `1px solid ${on ? "#ffffff" : "rgba(15,23,42,0.3)"}`,
           borderRadius: 3,
-          fontSize: 10,
+          fontSize: 9,
           background: on ? "rgba(255,255,255,0.18)" : "transparent",
         }}
       >
@@ -60,7 +68,7 @@ function VizToggle({ on, label, color, hint, onClick }) {
       <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
       <span
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           color: on ? "rgba(255,255,255,0.7)" : "#94a3b8",
           fontWeight: 400,
           fontStyle: "italic",
@@ -90,11 +98,27 @@ function Sidebar({
   vizAmd,
   onToggleVizColliery,
   onToggleVizAmd,
+  simulationSourceIds,
+  sourceById,
+  addMode,
+  onToggleAddMode,
+  onRemoveExtraSource,
+  maxSimSources,
 }) {
   const [colliery, setColliery] = useState(null);
   const [station, setStation] = useState(null);
   const [harm, setHarm] = useState(null);
   const [searchQ, setSearchQ] = useState("");
+
+  // 进场动画：首次挂载时强制视觉上是 collapsed，下一帧再切到 props.collapsed
+  // 的真实值（默认 false），这样 CSS transition 会从"收起"漂亮地动到"展开"。
+  // 之后用户手动切换 collapsed 也会走同一套 transition。
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const visiblyCollapsed = !hasMounted || collapsed;
 
   // colliery detail
   useEffect(() => {
@@ -208,6 +232,17 @@ function Sidebar({
   }
 
   // ── Choose what main panel to render
+  // multi-source sim 的全套 prop 打包传给 HarmPanel/PollutionSourcePanel
+  const simProps = {
+    simulating,
+    onToggleSimulate,
+    simulationSourceIds,
+    sourceById,
+    addMode,
+    onToggleAddMode,
+    onRemoveExtraSource,
+    maxSimSources,
+  };
   let mainPanel = null;
   if (selectedHarmId && harm) {
     mainPanel = (
@@ -216,8 +251,7 @@ function Sidebar({
         onBack={onHarmBack}
         backLabel="Back"
         onFocus={onFocus}
-        simulating={simulating}
-        onToggleSimulate={onToggleSimulate}
+        {...simProps}
       />
     );
   } else if (analysisFocus) {
@@ -238,8 +272,7 @@ function Sidebar({
         <PollutionSourcePanel
           pollutionSourceId={analysisFocus.id}
           onHarmSelect={onHarmSelect}
-          simulating={simulating}
-          onToggleSimulate={onToggleSimulate}
+          {...simProps}
         />
       );
     } else if (analysisFocus.kind === "segment") {
@@ -253,15 +286,16 @@ function Sidebar({
   } else {
     mainPanel = (
       <div
-        style={{ color: "#475569", fontSize: 13, lineHeight: 1.55, padding: 14 }}
+        style={{ color: "#475569", fontSize: 11.5, lineHeight: 1.6, padding: 14 }}
       >
         <p
           style={{
             marginTop: 0,
             color: "#1e293b",
             fontWeight: 500,
-            fontSize: 14,
+            fontSize: 12.5,
             letterSpacing: "0.01em",
+            marginBottom: 8,
           }}
         >
           Pennsylvania Anthracite AMD Atlas
@@ -269,10 +303,10 @@ function Sidebar({
         <p
           style={{
             color: "#64748b",
-            fontSize: 12,
+            fontSize: 10.5,
             fontStyle: "italic",
-            marginTop: 6,
-            marginBottom: 18,
+            marginTop: 0,
+            marginBottom: 20,
             letterSpacing: "0.02em",
             lineHeight: 1.6,
           }}
@@ -282,12 +316,12 @@ function Sidebar({
 
         <div
           style={{
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: 600,
             color: "#475569",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            marginBottom: 8,
+            marginBottom: 10,
           }}
         >
           Intensity Layers
@@ -326,10 +360,11 @@ function Sidebar({
         <p
           style={{
             color: "#94a3b8",
-            fontSize: 10.5,
+            fontSize: 9.5,
             fontStyle: "italic",
-            marginTop: 18,
+            marginTop: 20,
             letterSpacing: "0.02em",
+            lineHeight: 1.55,
           }}
         >
           See top-right panel for full legend and view mode.
@@ -346,7 +381,9 @@ function Sidebar({
         top: 12,
         left: 12,
         zIndex: 5,
-        width: collapsed ? "auto" : 320,
+        width: visiblyCollapsed
+          ? SIDEBAR_WIDTH_COLLAPSED
+          : SIDEBAR_WIDTH_EXPANDED,
         maxHeight: "calc(100vh - 24px)",
         background: PANEL_BG,
         border: PANEL_BORDER,
@@ -354,12 +391,13 @@ function Sidebar({
         boxShadow: PANEL_SHADOW,
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
-        fontSize: 12,
+        fontSize: 11,
         color: "#0f172a",
         overflow: "hidden",
         letterSpacing: "0.01em",
         display: "flex",
         flexDirection: "column",
+        transition: `width ${ANIM_MS}ms ${ANIM_EASE}`,
       }}
     >
       <button
@@ -376,164 +414,180 @@ function Sidebar({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 400,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           textTransform: "uppercase",
           color: "#0f172a",
           fontFamily: "inherit",
+          flex: "none",
         }}
       >
-        <span style={{ fontSize: 11, color: "#94a3b8" }}>
-          {collapsed ? "▸" : "▾"}
+        <span style={{ fontSize: 10, color: "#94a3b8" }}>
+          {visiblyCollapsed ? "▸" : "▾"}
         </span>
         <span>TRACE</span>
-        {!collapsed ? (
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 9.5,
-              fontWeight: 400,
-              fontStyle: "italic",
-              color: "#94a3b8",
-              letterSpacing: "0.06em",
-              textTransform: "none",
-            }}
-          >
-            AMD Harm Atlas
-          </span>
-        ) : null}
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 8.5,
+            fontWeight: 400,
+            fontStyle: "italic",
+            color: "#94a3b8",
+            letterSpacing: "0.06em",
+            textTransform: "none",
+            opacity: visiblyCollapsed ? 0 : 1,
+            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          AMD Harm Atlas
+        </span>
       </button>
 
-      {!collapsed ? (
-        <>
-          {/* search + (optional) exit-analysis pill */}
-          <div
+      {/* Inner content wrapper: 走 max-height + opacity transition 实现丝滑收放。
+          overflow:hidden 防止收起过程中 search 下拉等内容溢出。 */}
+      <div
+        style={{
+          maxHeight: visiblyCollapsed ? 0 : "calc(100vh - 80px)",
+          opacity: visiblyCollapsed ? 0 : 1,
+          overflow: "hidden",
+          transition: `max-height ${ANIM_MS}ms ${ANIM_EASE}, opacity ${Math.round(ANIM_MS * 0.7)}ms ${ANIM_EASE}`,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+        }}
+        aria-hidden={visiblyCollapsed}
+      >
+        {/* search + (optional) exit-analysis pill */}
+        <div
+          style={{
+            padding: "0 12px 10px",
+            borderBottom: "1px solid rgba(15,23,42,0.06)",
+            position: "relative",
+            flex: "none",
+          }}
+        >
+          <input
+            type="search"
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Search collieries, stations, harms…"
             style={{
-              padding: "0 12px 10px",
-              borderBottom: "1px solid rgba(15,23,42,0.06)",
-              position: "relative",
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "1px solid rgba(15,23,42,0.15)",
+              background: "rgba(255,255,255,0.7)",
+              fontSize: 11,
+              outline: "none",
+              fontFamily: "inherit",
             }}
-          >
-            <input
-              type="search"
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Search collieries, stations, harms…"
+          />
+          {searchResults.length > 0 ? (
+            <div
               style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "6px 10px",
+                position: "absolute",
+                top: "calc(100% - 4px)",
+                left: 12,
+                right: 12,
+                zIndex: 10,
+                background: "rgba(255,255,255,0.98)",
+                border: "1px solid rgba(15,23,42,0.12)",
                 borderRadius: 8,
-                border: "1px solid rgba(15,23,42,0.15)",
-                background: "rgba(255,255,255,0.7)",
-                fontSize: 12,
-                outline: "none",
-                fontFamily: "inherit",
+                boxShadow: "0 8px 24px rgba(15,23,42,0.18)",
+                maxHeight: 280,
+                overflow: "auto",
               }}
-            />
-            {searchResults.length > 0 ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% - 4px)",
-                  left: 12,
-                  right: 12,
-                  zIndex: 10,
-                  background: "rgba(255,255,255,0.98)",
-                  border: "1px solid rgba(15,23,42,0.12)",
-                  borderRadius: 8,
-                  boxShadow: "0 8px 24px rgba(15,23,42,0.18)",
-                  maxHeight: 280,
-                  overflow: "auto",
-                }}
-              >
-                {searchResults.map((hit) => (
-                  <button
-                    key={`${hit.kind}-${hit.id}`}
-                    type="button"
-                    onClick={() => handleSearchPick(hit)}
+              className="sidebar-scroll"
+            >
+              {searchResults.map((hit) => (
+                <button
+                  key={`${hit.kind}-${hit.id}`}
+                  type="button"
+                  onClick={() => handleSearchPick(hit)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "6px 10px",
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: "1px solid rgba(15,23,42,0.06)",
+                    cursor: "pointer",
+                    fontSize: 11,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  <span
                     style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "6px 10px",
-                      background: "transparent",
-                      border: "none",
-                      borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontFamily: "inherit",
+                      color:
+                        hit.kind === "colliery"
+                          ? "#7f1d1d"
+                          : hit.kind === "station"
+                            ? "#5b21b6"
+                            : "#0f172a",
+                      fontWeight: 700,
+                      fontSize: 8.5,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      marginRight: 8,
                     }}
                   >
+                    {hit.kind}
+                  </span>
+                  {hit.label}
+                  {hit.sub ? (
                     <span
                       style={{
-                        color:
-                          hit.kind === "colliery"
-                            ? "#7f1d1d"
-                            : hit.kind === "station"
-                              ? "#5b21b6"
-                              : "#0f172a",
-                        fontWeight: 700,
-                        fontSize: 9,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        marginRight: 8,
+                        color: "#94a3b8",
+                        fontStyle: "italic",
+                        marginLeft: 6,
                       }}
                     >
-                      {hit.kind}
+                      — {hit.sub}
                     </span>
-                    {hit.label}
-                    {hit.sub ? (
-                      <span
-                        style={{
-                          color: "#94a3b8",
-                          fontStyle: "italic",
-                          marginLeft: 6,
-                        }}
-                      >
-                        — {hit.sub}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-            {analysisFocus ? (
-              <button
-                type="button"
-                onClick={onExitFocus}
-                style={{
-                  marginTop: 8,
-                  fontSize: 11,
-                  color: "#475569",
-                  background: "transparent",
-                  border: "1px solid rgba(15,23,42,0.18)",
-                  borderRadius: 6,
-                  padding: "3px 10px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  letterSpacing: "0.02em",
-                }}
-              >
-                ✕ Exit analysis
-              </button>
-            ) : null}
-          </div>
+          {analysisFocus ? (
+            <button
+              type="button"
+              onClick={onExitFocus}
+              style={{
+                marginTop: 8,
+                fontSize: 10,
+                color: "#475569",
+                background: "transparent",
+                border: "1px solid rgba(15,23,42,0.18)",
+                borderRadius: 6,
+                padding: "3px 10px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                letterSpacing: "0.02em",
+              }}
+            >
+              ✕ Exit analysis
+            </button>
+          ) : null}
+        </div>
 
-          {/* main panel — entity detail or welcome */}
-          <div
-            style={{
-              flex: 1,
-              overflow: "auto",
-              minHeight: 0,
-            }}
-          >
-            {mainPanel}
-          </div>
-        </>
-      ) : null}
+        {/* main panel — entity detail or welcome */}
+        <div
+          className="sidebar-scroll"
+          style={{
+            flex: 1,
+            overflow: "auto",
+            minHeight: 0,
+          }}
+        >
+          {mainPanel}
+        </div>
+      </div>
     </aside>
   );
 }
@@ -544,7 +598,7 @@ function Loading() {
       style={{
         padding: 16,
         color: "#64748b",
-        fontSize: 13,
+        fontSize: 11.5,
         fontStyle: "italic",
       }}
     >

@@ -29,10 +29,10 @@ const STATION_PREVIEW_LIMIT = 3;
 
 function Section({ title, count, children }) {
   return (
-    <div style={{ marginTop: 22 }}>
+    <div style={{ marginTop: 20 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 600,
           color: "#64748b",
           letterSpacing: "0.14em",
@@ -56,10 +56,10 @@ function Section({ title, count, children }) {
 function MetricCell({ label, value, unit, warn }) {
   const hasValue = value != null && !Number.isNaN(value);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <span
         style={{
-          fontSize: 9.5,
+          fontSize: 9,
           color: "#94a3b8",
           letterSpacing: "0.12em",
           textTransform: "uppercase",
@@ -70,7 +70,7 @@ function MetricCell({ label, value, unit, warn }) {
       </span>
       <span
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 500,
           color: warn ? "#7f1d1d" : hasValue ? "#0f172a" : "#cbd5e1",
           fontVariantNumeric: "tabular-nums",
@@ -100,7 +100,7 @@ function StationCard({ station, onClick }) {
         border: "1px solid rgba(15,23,42,0.06)",
         borderRadius: 8,
         padding: "10px 12px",
-        marginBottom: 8,
+        marginBottom: 9,
         cursor: onClick ? "pointer" : "default",
         fontFamily: "inherit",
       }}
@@ -110,13 +110,13 @@ function StationCard({ station, onClick }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "baseline",
-          marginBottom: 8,
+          marginBottom: 9,
           gap: 8,
         }}
       >
         <span
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 500,
             color: "#0f172a",
             overflow: "hidden",
@@ -129,7 +129,7 @@ function StationCard({ station, onClick }) {
         </span>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 9.5,
             color: "#94a3b8",
             fontVariantNumeric: "tabular-nums",
             flex: "none",
@@ -143,7 +143,7 @@ function StationCard({ station, onClick }) {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          rowGap: 8,
+          rowGap: 9,
           columnGap: 12,
         }}
       >
@@ -181,13 +181,13 @@ function ExpandToggle({ onClick, children }) {
       type="button"
       onClick={onClick}
       style={{
-        marginTop: 4,
+        marginTop: 6,
         background: "transparent",
         border: "1px solid rgba(15,23,42,0.12)",
         borderRadius: 6,
         padding: "4px 12px",
         cursor: "pointer",
-        fontSize: 11,
+        fontSize: 10,
         color: "#475569",
         letterSpacing: "0.02em",
         fontFamily: "inherit",
@@ -205,6 +205,12 @@ function HarmPanel({
   onFocus,
   simulating,
   onToggleSimulate,
+  simulationSourceIds,
+  sourceById,
+  addMode,
+  onToggleAddMode,
+  onRemoveExtraSource,
+  maxSimSources,
 }) {
   const [stationsExpanded, setStationsExpanded] = useState(false);
   const [collieriesExpanded, setCollieriesExpanded] = useState(false);
@@ -225,7 +231,7 @@ function HarmPanel({
   const sev = harm?.severity || "low";
 
   return (
-    <div style={{ padding: 16, fontSize: 13 }}>
+    <div style={{ padding: 14, fontSize: 11.5 }}>
       {onBack ? (
         <button
           type="button"
@@ -234,7 +240,7 @@ function HarmPanel({
             background: "transparent",
             border: "none",
             cursor: "pointer",
-            fontSize: 11,
+            fontSize: 10,
             color: "#64748b",
             padding: "0 0 10px 0",
             letterSpacing: "0.02em",
@@ -257,7 +263,7 @@ function HarmPanel({
       >
         <span
           style={{
-            fontSize: 15,
+            fontSize: 13.5,
             fontWeight: 500,
             color: "#0f172a",
             lineHeight: 1.4,
@@ -275,7 +281,7 @@ function HarmPanel({
             color: SEVERITY_FG[sev] || "#ffffff",
             padding: "3px 9px",
             borderRadius: 4,
-            fontSize: 9.5,
+            fontSize: 8.5,
             fontWeight: 700,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -289,12 +295,13 @@ function HarmPanel({
       {/* One-liner: affected length · reach count · flow gpm */}
       <div
         style={{
-          fontSize: 12,
+          fontSize: 11,
           color: "#64748b",
-          marginTop: 6,
+          marginTop: 7,
           fontStyle: "italic",
           fontVariantNumeric: "tabular-nums",
           letterSpacing: "0.01em",
+          lineHeight: 1.55,
         }}
       >
         {km.total_reach_length_km != null
@@ -307,6 +314,12 @@ function HarmPanel({
         <SimulateBlock
           simulating={!!simulating}
           onToggle={onToggleSimulate}
+          simulationSourceIds={simulationSourceIds}
+          sourceById={sourceById}
+          addMode={addMode}
+          onToggleAddMode={onToggleAddMode}
+          onRemoveExtraSource={onRemoveExtraSource}
+          maxSimSources={maxSimSources}
         />
       ) : null}
 
@@ -333,8 +346,9 @@ function HarmPanel({
           <div
             style={{
               color: "#94a3b8",
-              fontSize: 12,
+              fontSize: 11,
               fontStyle: "italic",
+              lineHeight: 1.55,
             }}
           >
             No stations along the 20 km downstream chain recorded sample data.
@@ -363,14 +377,14 @@ function HarmPanel({
                     background: "transparent",
                     border: "none",
                     borderBottom: "1px solid rgba(15,23,42,0.05)",
-                    padding: "6px 0",
+                    padding: "7px 0",
                     cursor: onFocus ? "pointer" : "default",
                     fontFamily: "inherit",
                   }}
                 >
                   <div
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       color: "#0f172a",
                       fontVariantNumeric: "tabular-nums",
                     }}
@@ -392,9 +406,10 @@ function HarmPanel({
                   {c.status ? (
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 9.5,
                         color: "#94a3b8",
                         fontStyle: "italic",
+                        marginTop: 2,
                       }}
                     >
                       {c.status}
@@ -413,10 +428,10 @@ function HarmPanel({
       {/* Footer */}
       <div
         style={{
-          marginTop: 26,
+          marginTop: 24,
           paddingTop: 12,
           borderTop: "1px solid rgba(15,23,42,0.08)",
-          fontSize: 10.5,
+          fontSize: 9.5,
           color: "#94a3b8",
           lineHeight: 1.7,
           letterSpacing: "0.02em",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 /**
  * Floating top-right layer + legend panel.
@@ -9,6 +9,12 @@ import React, { useState } from "react";
  *   counts:   { collieries, stations, sources, streams }
  *   is3D, onToggle3D — pure camera tilt control
  */
+
+const PANEL_WIDTH_EXPANDED = 212;
+const PANEL_WIDTH_COLLAPSED = 96;
+// 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
+const ANIM_MS = 580;
+const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
 
 const LAYER_LEGENDS = {
   collieries: {
@@ -52,8 +58,8 @@ const LAYER_LEGENDS = {
 };
 
 // SVG chip: viewBox 22×22, same coordinate system as MapView.makeShapeIcon,
-// rendered at 13 px on screen.
-const SVG_SIZE = 13;
+// rendered at 12 px on screen (TV-friendly tighter scale).
+const SVG_SIZE = 12;
 const STROKE = "rgba(15,23,42,0.45)";
 
 function Chip({ color, shape = "circle" }) {
@@ -121,8 +127,8 @@ function Chip({ color, shape = "circle" }) {
       <span
         style={{
           ...common,
-          width: 14,
-          height: 3,
+          width: 13,
+          height: 2.5,
           background: color,
           borderRadius: 2,
         }}
@@ -135,8 +141,8 @@ function Chip({ color, shape = "circle" }) {
     <span
       style={{
         ...common,
-        width: 10,
-        height: 10,
+        width: 9,
+        height: 9,
         borderRadius: "50%",
         background: color,
         border: `1px solid ${STROKE}`,
@@ -150,7 +156,7 @@ function LayerRow({ layerKey, on, count, onChange }) {
   return (
     <div
       style={{
-        padding: "8px 10px",
+        padding: "8px 12px",
         borderTop: "1px solid rgba(15,23,42,0.06)",
       }}
     >
@@ -158,9 +164,9 @@ function LayerRow({ layerKey, on, count, onChange }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 7,
           cursor: "pointer",
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 500,
           letterSpacing: "0.02em",
         }}
@@ -178,6 +184,7 @@ function LayerRow({ layerKey, on, count, onChange }) {
             fontWeight: 400,
             fontVariantNumeric: "tabular-nums",
             fontStyle: "italic",
+            fontSize: 10,
           }}
         >
           {count?.toLocaleString?.() ?? count}
@@ -185,13 +192,14 @@ function LayerRow({ layerKey, on, count, onChange }) {
       </label>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontStyle: "italic",
           color: "#94a3b8",
-          marginTop: 3,
-          marginLeft: 22,
-          marginBottom: 6,
+          marginTop: 4,
+          marginLeft: 21,
+          marginBottom: 7,
           letterSpacing: "0.02em",
+          lineHeight: 1.45,
         }}
       >
         {meta.description}
@@ -201,9 +209,10 @@ function LayerRow({ layerKey, on, count, onChange }) {
           display: "flex",
           flexWrap: "wrap",
           gap: 6,
-          marginLeft: 22,
-          fontSize: 10,
+          marginLeft: 21,
+          fontSize: 9.5,
           color: "#475569",
+          lineHeight: 1.4,
         }}
       >
         {meta.chips.map((c) => (
@@ -224,7 +233,7 @@ function ViewModeRow({ is3D, onToggle3D }) {
     color: active ? "#f8fafc" : "#475569",
     border: "1px solid rgba(15,23,42,0.15)",
     padding: "6px 0",
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 500,
     letterSpacing: "0.16em",
     cursor: "pointer",
@@ -235,13 +244,13 @@ function ViewModeRow({ is3D, onToggle3D }) {
   return (
     <div
       style={{
-        padding: "8px 10px",
+        padding: "8px 12px",
         borderBottom: "1px solid rgba(15,23,42,0.06)",
       }}
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 600,
           color: "#475569",
           letterSpacing: "0.14em",
@@ -279,6 +288,13 @@ function LayerControlPanel({
   onToggle3D,
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  // 进场动画：同 Sidebar 的策略，首帧强制 collapsed，下一帧切到真实状态
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHasMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const visiblyCollapsed = !hasMounted || collapsed;
 
   const setLayer = (layer, on) => {
     onChange({ ...visibleLayers, [layer]: on });
@@ -291,18 +307,19 @@ function LayerControlPanel({
         top: 12,
         right: 12,
         zIndex: 5,
-        width: collapsed ? "auto" : 240,
+        width: visiblyCollapsed ? PANEL_WIDTH_COLLAPSED : PANEL_WIDTH_EXPANDED,
         background: "rgba(248,250,252,0.94)", // slate-50 透明
         border: "1px solid rgba(15,23,42,0.08)",
-        borderRadius: 8,
+        borderRadius: 10,
         boxShadow:
-          "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.08)",
+          "0 1px 2px rgba(15,23,42,0.04), 0 12px 32px rgba(15,23,42,0.10)",
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
-        fontSize: 12,
+        fontSize: 11,
         color: "#0f172a",
         overflow: "hidden",
         letterSpacing: "0.01em",
+        transition: `width ${ANIM_MS}ms ${ANIM_EASE}`,
       }}
     >
       <button
@@ -319,65 +336,72 @@ function LayerControlPanel({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 400,
-          letterSpacing: "0.18em",
+          letterSpacing: "0.2em",
           textTransform: "uppercase",
           color: "#0f172a",
           fontFamily: "inherit",
         }}
       >
-        <span style={{ fontSize: 11, color: "#94a3b8" }}>
-          {collapsed ? "▸" : "▾"}
+        <span style={{ fontSize: 10, color: "#94a3b8" }}>
+          {visiblyCollapsed ? "▸" : "▾"}
         </span>
         <span>Layers</span>
-        {!collapsed ? (
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 9.5,
-              fontWeight: 400,
-              fontStyle: "italic",
-              color: "#94a3b8",
-              letterSpacing: "0.06em",
-              textTransform: "none",
-            }}
-          >
-            Legend
-          </span>
-        ) : null}
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 8.5,
+            fontWeight: 400,
+            fontStyle: "italic",
+            color: "#94a3b8",
+            letterSpacing: "0.06em",
+            textTransform: "none",
+            opacity: visiblyCollapsed ? 0 : 1,
+            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Legend
+        </span>
       </button>
-      {!collapsed ? (
-        <div>
-          {onToggle3D ? (
-            <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} />
-          ) : null}
-          <LayerRow
-            layerKey="collieries"
-            on={visibleLayers.collieries}
-            count={counts?.collieries}
-            onChange={setLayer}
-          />
-          <LayerRow
-            layerKey="stations"
-            on={visibleLayers.stations}
-            count={counts?.stations}
-            onChange={setLayer}
-          />
-          <LayerRow
-            layerKey="sources"
-            on={visibleLayers.sources}
-            count={counts?.sources}
-            onChange={setLayer}
-          />
-          <LayerRow
-            layerKey="streams"
-            on={visibleLayers.streams}
-            count={counts?.streams}
-            onChange={setLayer}
-          />
-        </div>
-      ) : null}
+      <div
+        style={{
+          maxHeight: visiblyCollapsed ? 0 : "calc(100vh - 80px)",
+          opacity: visiblyCollapsed ? 0 : 1,
+          overflow: "hidden",
+          transition: `max-height ${ANIM_MS}ms ${ANIM_EASE}, opacity ${Math.round(ANIM_MS * 0.7)}ms ${ANIM_EASE}`,
+        }}
+        aria-hidden={visiblyCollapsed}
+      >
+        {onToggle3D ? (
+          <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} />
+        ) : null}
+        <LayerRow
+          layerKey="collieries"
+          on={visibleLayers.collieries}
+          count={counts?.collieries}
+          onChange={setLayer}
+        />
+        <LayerRow
+          layerKey="stations"
+          on={visibleLayers.stations}
+          count={counts?.stations}
+          onChange={setLayer}
+        />
+        <LayerRow
+          layerKey="sources"
+          on={visibleLayers.sources}
+          count={counts?.sources}
+          onChange={setLayer}
+        />
+        <LayerRow
+          layerKey="streams"
+          on={visibleLayers.streams}
+          count={counts?.streams}
+          onChange={setLayer}
+        />
+      </div>
     </div>
   );
 }

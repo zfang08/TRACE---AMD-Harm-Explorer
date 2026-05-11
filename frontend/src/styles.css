@@ -10,3 +10,39 @@ body {
     "Apple Color Emoji", "Segoe UI Emoji";
 }
 
+/* Refined thin scrollbar for sidebar panels */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+  transition: background 150ms ease;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.65);
+}
+.sidebar-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Map exploration cursor: crosshair (GIS / aim feel) instead of Mapbox's
+   default grab. Marker hover swaps to pointer via inline style on the canvas
+   (see MapView.jsx mouseenter handlers), and Mapbox keeps the grabbing cursor
+   during active drag for tactile feedback. */
+.mapboxgl-canvas-container.mapboxgl-interactive,
+.mapboxgl-canvas {
+  cursor: crosshair;
+}
+.mapboxgl-canvas-container.mapboxgl-interactive:active {
+  cursor: grabbing;
+}
+

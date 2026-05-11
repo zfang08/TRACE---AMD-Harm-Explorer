@@ -19,11 +19,11 @@ function CollieryPanel({ colliery, onHarmSelect }) {
   const linkedHarms = colliery?.linked_harms || [];
 
   return (
-    <div style={{ padding: 16, fontSize: 13 }}>
+    <div style={{ padding: 14, fontSize: 11.5 }}>
       <h2
         style={{
           margin: 0,
-          fontSize: 15,
+          fontSize: 13.5,
           fontWeight: 500,
           color: "#0f172a",
           lineHeight: 1.4,
@@ -35,10 +35,11 @@ function CollieryPanel({ colliery, onHarmSelect }) {
       {colliery?.operator ? (
         <p
           style={{
-            margin: "4px 0 0",
-            fontSize: 12,
+            margin: "5px 0 0",
+            fontSize: 11,
             fontStyle: "italic",
             color: "#64748b",
+            lineHeight: 1.55,
           }}
         >
           {colliery.operator}
@@ -49,9 +50,9 @@ function CollieryPanel({ colliery, onHarmSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "4px 12px",
-          fontSize: 13,
-          marginTop: 12,
+          gap: "6px 12px",
+          fontSize: 11,
+          marginTop: 14,
         }}
       >
         <strong style={{ color: "#475569" }}>Status</strong>
@@ -61,7 +62,7 @@ function CollieryPanel({ colliery, onHarmSelect }) {
       <div
         style={{
           marginTop: 20,
-          fontSize: 10,
+          fontSize: 9.5,
           fontWeight: 600,
           color: "#64748b",
           letterSpacing: "0.14em",
@@ -78,9 +79,10 @@ function CollieryPanel({ colliery, onHarmSelect }) {
         <p
           style={{
             color: "#94a3b8",
-            fontSize: 12,
+            fontSize: 11,
             fontStyle: "italic",
             marginTop: 8,
+            lineHeight: 1.55,
           }}
         >
           No AMD harms linked. (No registered AMD discharge within a 2 km
@@ -109,9 +111,9 @@ function CollieryPanel({ colliery, onHarmSelect }) {
                     background: "transparent",
                     border: "1px solid rgba(15,23,42,0.12)",
                     borderRadius: 6,
-                    padding: "5px 8px",
+                    padding: "6px 9px",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 11,
                     textAlign: "left",
                     fontFamily: "inherit",
                   }}
@@ -123,7 +125,7 @@ function CollieryPanel({ colliery, onHarmSelect }) {
                       color: SEVERITY_FG[sev] || "#ffffff",
                       padding: "2px 6px",
                       borderRadius: 3,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: 700,
                       letterSpacing: "0.08em",
                       textTransform: "uppercase",

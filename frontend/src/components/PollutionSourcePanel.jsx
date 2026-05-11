@@ -24,6 +24,12 @@ function PollutionSourcePanel({
   onHarmSelect,
   simulating,
   onToggleSimulate,
+  simulationSourceIds,
+  sourceById,
+  addMode,
+  onToggleAddMode,
+  onRemoveExtraSource,
+  maxSimSources,
 }) {
   const [harm, setHarm] = useState(null);
 
@@ -45,9 +51,9 @@ function PollutionSourcePanel({
     return (
       <div
         style={{
-          padding: 16,
+          padding: 14,
           color: "#64748b",
-          fontSize: 13,
+          fontSize: 11.5,
           fontStyle: "italic",
         }}
       >
@@ -60,7 +66,7 @@ function PollutionSourcePanel({
   const sev = harm.severity || "low";
 
   return (
-    <div style={{ padding: 16, fontSize: 13 }}>
+    <div style={{ padding: 14, fontSize: 11.5 }}>
       <div
         style={{
           display: "flex",
@@ -72,7 +78,7 @@ function PollutionSourcePanel({
         <h2
           style={{
             margin: 0,
-            fontSize: 15,
+            fontSize: 13.5,
             fontWeight: 500,
             color: "#0f172a",
             lineHeight: 1.4,
@@ -90,7 +96,7 @@ function PollutionSourcePanel({
             color: SEVERITY_FG[sev] || "#ffffff",
             padding: "3px 9px",
             borderRadius: 4,
-            fontSize: 9.5,
+            fontSize: 8.5,
             fontWeight: 700,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -102,10 +108,11 @@ function PollutionSourcePanel({
       </div>
       <p
         style={{
-          margin: "4px 0 0",
-          fontSize: 12,
+          margin: "5px 0 0",
+          fontSize: 11,
           fontStyle: "italic",
           color: "#64748b",
+          lineHeight: 1.55,
         }}
       >
         {harm.name}
@@ -115,8 +122,8 @@ function PollutionSourcePanel({
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "4px 12px",
-          fontSize: 12.5,
+          gap: "6px 12px",
+          fontSize: 11,
           marginTop: 14,
         }}
       >
@@ -142,8 +149,8 @@ function PollutionSourcePanel({
           padding: "10px 12px",
           background: "rgba(241,245,249,0.7)",
           borderRadius: 8,
-          fontSize: 12,
-          lineHeight: 1.6,
+          fontSize: 11,
+          lineHeight: 1.65,
           color: "#0f172a",
         }}
       >
@@ -164,6 +171,12 @@ function PollutionSourcePanel({
         <SimulateBlock
           simulating={!!simulating}
           onToggle={onToggleSimulate}
+          simulationSourceIds={simulationSourceIds}
+          sourceById={sourceById}
+          addMode={addMode}
+          onToggleAddMode={onToggleAddMode}
+          onRemoveExtraSource={onRemoveExtraSource}
+          maxSimSources={maxSimSources}
         />
       ) : null}
 
@@ -179,7 +192,7 @@ function PollutionSourcePanel({
           border: "none",
           borderRadius: 8,
           cursor: "pointer",
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
           letterSpacing: "0.04em",
           fontFamily: "inherit",
