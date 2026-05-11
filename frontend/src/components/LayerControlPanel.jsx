@@ -10,11 +10,11 @@ import React, { useEffect, useState } from "react";
  *   is3D, onToggle3D — pure camera tilt control
  */
 
-const PANEL_WIDTH_EXPANDED = 212;
-const PANEL_WIDTH_COLLAPSED = 96;
+const PANEL_WIDTH_EXPANDED = 220;
+const PANEL_WIDTH_COLLAPSED = 100;
 // 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
 const ANIM_MS = 580;
-const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+const ANIM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 const LAYER_LEGENDS = {
   collieries: {
@@ -22,11 +22,11 @@ const LAYER_LEGENDS = {
     shape: "house",
     description: "PA DEP coal mining permit points",
     chips: [
-      { color: "#1e293b", label: "Active" },
-      { color: "#94a3b8", label: "Inactive" },
-      { color: "#475569", label: "Abandoned" },
-      { color: "#65a30d", label: "Reclaimed" },
-      { color: "#e2e8f0", label: "Proposed" },
+      { color: "#0a0a0a", label: "Active" },
+      { color: "#a3a3a3", label: "Inactive" },
+      { color: "#525252", label: "Abandoned" },
+      { color: "#4d6033", label: "Reclaimed" },
+      { color: "#e5e5e5", label: "Proposed" },
     ],
   },
   stations: {
@@ -34,8 +34,8 @@ const LAYER_LEGENDS = {
     shape: "diamond",
     description: "USGS NWIS + EPA WQP",
     chips: [
-      { color: "#5b21b6", label: "WQP + NWIS" },
-      { color: "#a78bfa", label: "Single source" },
+      { color: "#2f4858", label: "WQP + NWIS" },
+      { color: "#94a8b6", label: "Single source" },
     ],
   },
   sources: {
@@ -43,24 +43,24 @@ const LAYER_LEGENDS = {
     shape: "droplet",
     description: "PA DEP AML inventory · severity from data",
     chips: [
-      { color: "#7f1d1d", label: "Extreme" },
-      { color: "#b91c1c", label: "High" },
-      { color: "#dc2626", label: "Medium" },
-      { color: "#fda4af", label: "Low" },
+      { color: "#7a1e10", label: "Extreme" },
+      { color: "#b9341e", label: "High" },
+      { color: "#d4634a", label: "Medium" },
+      { color: "#efb5a4", label: "Low" },
     ],
   },
   streams: {
     label: "Streams",
     shape: "line",
     description: "USGS NHD HR flowlines",
-    chips: [{ color: "#94a3b8", label: "Stream / artificial path" }],
+    chips: [{ color: "#737373", label: "Stream / artificial path" }],
   },
 };
 
 // SVG chip: viewBox 22×22, same coordinate system as MapView.makeShapeIcon,
 // rendered at 12 px on screen (TV-friendly tighter scale).
 const SVG_SIZE = 12;
-const STROKE = "rgba(15,23,42,0.45)";
+const STROKE = "rgba(0, 0, 0, 0.6)";
 
 function Chip({ color, shape = "circle" }) {
   const common = {
@@ -151,54 +151,92 @@ function Chip({ color, shape = "circle" }) {
   );
 }
 
+/* Custom hairline toggle — sits perfectly in the white aesthetic
+   (browser checkbox is the giveaway sign of a non-designed UI). */
+function HairlineToggle({ on, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      style={{
+        width: 24,
+        height: 14,
+        borderRadius: 999,
+        border: `1px solid ${on ? "var(--ink)" : "var(--hairline-strong)"}`,
+        background: on ? "var(--ink)" : "transparent",
+        position: "relative",
+        cursor: "pointer",
+        padding: 0,
+        transition:
+          "background 200ms var(--ease-out), border-color 200ms var(--ease-out)",
+        flex: "none",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 1,
+          left: on ? 11 : 1,
+          width: 10,
+          height: 10,
+          borderRadius: 999,
+          background: on ? "#fff" : "var(--ink-3)",
+          transition: "left 200ms var(--ease-out), background 200ms var(--ease-out)",
+        }}
+      />
+    </button>
+  );
+}
+
 function LayerRow({ layerKey, on, count, onChange }) {
   const meta = LAYER_LEGENDS[layerKey];
   return (
     <div
       style={{
-        padding: "8px 12px",
-        borderTop: "1px solid rgba(15,23,42,0.06)",
+        padding: "12px 14px",
+        borderTop: "1px solid var(--hairline-soft)",
       }}
     >
-      <label
+      <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 7,
-          cursor: "pointer",
-          fontSize: 11,
+          gap: 10,
+          fontSize: 11.5,
           fontWeight: 500,
-          letterSpacing: "0.02em",
+          letterSpacing: "-0.005em",
+          color: "var(--ink)",
         }}
       >
-        <input
-          type="checkbox"
-          checked={on}
-          onChange={(e) => onChange(layerKey, e.target.checked)}
-          style={{ cursor: "pointer" }}
-        />
+        <HairlineToggle on={on} onChange={(v) => onChange(layerKey, v)} />
         <span style={{ flex: 1 }}>{meta.label}</span>
         <span
+          className="font-mono"
           style={{
-            color: "#94a3b8",
-            fontWeight: 400,
+            color: "var(--ink-3)",
+            fontWeight: 500,
             fontVariantNumeric: "tabular-nums",
-            fontStyle: "italic",
-            fontSize: 10,
+            fontSize: 9.5,
+            letterSpacing: "0.01em",
+            padding: "2px 7px",
+            border: "1px solid var(--hairline)",
+            borderRadius: 999,
+            background: "var(--surface-quiet)",
           }}
         >
           {count?.toLocaleString?.() ?? count}
         </span>
-      </label>
+      </div>
       <div
         style={{
-          fontSize: 9.5,
-          fontStyle: "italic",
-          color: "#94a3b8",
-          marginTop: 4,
-          marginLeft: 21,
-          marginBottom: 7,
-          letterSpacing: "0.02em",
+          fontSize: 10,
+          color: "var(--ink-3)",
+          marginTop: 6,
+          marginLeft: 34,
+          marginBottom: 9,
+          letterSpacing: "-0.005em",
           lineHeight: 1.45,
         }}
       >
@@ -209,14 +247,26 @@ function LayerRow({ layerKey, on, count, onChange }) {
           display: "flex",
           flexWrap: "wrap",
           gap: 6,
-          marginLeft: 21,
+          marginLeft: 34,
           fontSize: 9.5,
-          color: "#475569",
-          lineHeight: 1.4,
+          color: "var(--ink-2)",
+          lineHeight: 1.5,
         }}
       >
         {meta.chips.map((c) => (
-          <span key={c.label} style={{ whiteSpace: "nowrap" }}>
+          <span
+            key={c.label}
+            style={{
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 8px 2px 6px",
+              border: "1px solid var(--hairline)",
+              borderRadius: 999,
+              background: "var(--surface-quiet)",
+            }}
+          >
             <Chip color={c.color} shape={meta.shape} />
             {c.label}
           </span>
@@ -226,55 +276,86 @@ function LayerRow({ layerKey, on, count, onChange }) {
   );
 }
 
+/* iOS-style segmented control: one pill track, sliding ink "thumb"
+   indicates the active option. Pure white aesthetic, no gradients. */
 function ViewModeRow({ is3D, onToggle3D }) {
-  const btn = (active) => ({
-    flex: 1,
-    background: active ? "#1e293b" : "transparent",
-    color: active ? "#f8fafc" : "#475569",
-    border: "1px solid rgba(15,23,42,0.15)",
-    padding: "6px 0",
-    fontSize: 10.5,
-    fontWeight: 500,
-    letterSpacing: "0.16em",
-    cursor: "pointer",
-    borderRadius: 6,
-    fontFamily: "inherit",
-    transition: "background 150ms ease, color 150ms ease",
-  });
   return (
     <div
       style={{
-        padding: "8px 12px",
-        borderBottom: "1px solid rgba(15,23,42,0.06)",
+        padding: "12px 14px 14px",
+        borderBottom: "1px solid var(--hairline-soft)",
       }}
     >
       <div
+        className="font-mono"
         style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: "#475569",
+          fontSize: 9,
+          fontWeight: 500,
+          color: "var(--ink-3)",
           letterSpacing: "0.14em",
           textTransform: "uppercase",
           marginBottom: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        View
+        <span>View</span>
+        <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
       </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        <button
-          type="button"
-          onClick={() => onToggle3D?.(false)}
-          style={btn(!is3D)}
-        >
-          2D
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggle3D?.(true)}
-          style={btn(is3D)}
-        >
-          3D
-        </button>
+
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          padding: 2,
+          background: "var(--bg-3)",
+          borderRadius: 999,
+          border: "1px solid var(--hairline)",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 2,
+            bottom: 2,
+            left: is3D ? "50%" : 2,
+            width: "calc(50% - 2px)",
+            background: "var(--ink)",
+            borderRadius: 999,
+            transition: "left 280ms var(--ease-out)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+          }}
+        />
+        {[
+          { label: "2D", active: !is3D, onClick: () => onToggle3D?.(false) },
+          { label: "3D", active: is3D, onClick: () => onToggle3D?.(true) },
+        ].map(({ label, active, onClick }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={onClick}
+            style={{
+              position: "relative",
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              padding: "5px 0",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.18em",
+              color: active ? "var(--bg)" : "var(--ink-2)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "color 280ms var(--ease-out)",
+              zIndex: 1,
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -302,24 +383,17 @@ function LayerControlPanel({
 
   return (
     <div
+      className="surface"
       style={{
         position: "absolute",
-        top: 12,
-        right: 12,
+        top: 14,
+        right: 14,
         zIndex: 5,
         width: visiblyCollapsed ? PANEL_WIDTH_COLLAPSED : PANEL_WIDTH_EXPANDED,
-        background: "rgba(248,250,252,0.94)", // slate-50 透明
-        border: "1px solid rgba(15,23,42,0.08)",
-        borderRadius: 10,
-        boxShadow:
-          "0 1px 2px rgba(15,23,42,0.04), 0 12px 32px rgba(15,23,42,0.10)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
         fontSize: 11,
-        color: "#0f172a",
         overflow: "hidden",
-        letterSpacing: "0.01em",
-        transition: `width ${ANIM_MS}ms ${ANIM_EASE}`,
+        transition: `width ${ANIM_MS}ms ${ANIM_EASE}, border-radius ${ANIM_MS}ms ${ANIM_EASE}`,
+        borderRadius: visiblyCollapsed ? 999 : "var(--radius-lg)",
       }}
     >
       <button
@@ -330,39 +404,59 @@ function LayerControlPanel({
           width: "100%",
           background: "transparent",
           border: "none",
-          padding: "10px 14px",
+          padding: "12px 14px 12px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           gap: 10,
-          fontSize: 11,
-          fontWeight: 400,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          color: "#0f172a",
+          color: "var(--ink)",
           fontFamily: "inherit",
         }}
       >
-        <span style={{ fontSize: 10, color: "#94a3b8" }}>
-          {visiblyCollapsed ? "▸" : "▾"}
-        </span>
-        <span>Layers</span>
         <span
           style={{
-            marginLeft: "auto",
-            fontSize: 8.5,
-            fontWeight: 400,
-            fontStyle: "italic",
-            color: "#94a3b8",
-            letterSpacing: "0.06em",
-            textTransform: "none",
-            opacity: visiblyCollapsed ? 0 : 1,
-            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
-            whiteSpace: "nowrap",
+            fontSize: 9,
+            color: "var(--ink-3)",
+            transform: visiblyCollapsed ? "rotate(0deg)" : "rotate(90deg)",
+            transition: `transform ${ANIM_MS}ms ${ANIM_EASE}`,
+            display: "inline-block",
+            lineHeight: 1,
+            width: 9,
+          }}
+        >
+          ▸
+        </span>
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            lineHeight: 1,
+            color: "var(--ink)",
           }}
         >
           Legend
+        </span>
+        <span
+          className="font-mono"
+          style={{
+            marginLeft: "auto",
+            fontSize: 8.5,
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            opacity: visiblyCollapsed ? 0 : 1,
+            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+            whiteSpace: "nowrap",
+            padding: "2px 8px",
+            border: "1px solid var(--hairline)",
+            borderRadius: 999,
+            background: "var(--surface-quiet)",
+          }}
+        >
+          Layers
         </span>
       </button>
       <div

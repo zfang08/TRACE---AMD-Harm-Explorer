@@ -11,20 +11,14 @@ import SegmentPanel from "./SegmentPanel";
 import StationPanel from "./StationPanel";
 import TopKList from "./TopKList";
 
-// Floating panel chrome — mirrors LayerControlPanel for visual consistency
-const PANEL_BG = "rgba(248,250,252,0.94)";
-const PANEL_BORDER = "1px solid rgba(15,23,42,0.08)";
-const PANEL_RADIUS = 10;
-const PANEL_SHADOW =
-  "0 1px 2px rgba(15,23,42,0.04), 0 12px 32px rgba(15,23,42,0.10)";
-
+// Chrome handled by .surface utility class (see styles.css).
 // Width 配额：宽屏（TV）显示，单位 px。展开宽度比之前 320 缩到 272；折叠态
 // 取一个固定宽度（不再用 width:auto），这样 CSS transition 才能丝滑收放。
-const SIDEBAR_WIDTH_EXPANDED = 272;
-const SIDEBAR_WIDTH_COLLAPSED = 92;
+const SIDEBAR_WIDTH_EXPANDED = 282;
+const SIDEBAR_WIDTH_COLLAPSED = 96;
 // 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
 const ANIM_MS = 580;
-const ANIM_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+const ANIM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 function VizToggle({ on, label, color, hint, onClick }) {
   return (
@@ -34,44 +28,46 @@ function VizToggle({ on, label, color, hint, onClick }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
+        gap: 10,
         width: "100%",
-        padding: "7px 10px",
+        padding: "9px 13px",
         marginBottom: 6,
-        background: on ? color : "rgba(255,255,255,0.7)",
-        color: on ? "#ffffff" : "#1e293b",
-        border: `1px solid ${on ? color : "rgba(15,23,42,0.15)"}`,
-        borderRadius: 8,
+        background: on ? "var(--ink)" : "var(--surface-strong)",
+        color: on ? "var(--bg)" : "var(--ink)",
+        border: `1px solid ${on ? "var(--ink)" : "var(--hairline)"}`,
+        borderRadius: 999,
         cursor: "pointer",
         fontSize: 11,
         fontWeight: 500,
-        letterSpacing: "0.04em",
-        transition: "background 150ms ease, color 150ms ease",
+        letterSpacing: "-0.005em",
+        transition:
+          "background 220ms var(--ease-out), color 220ms var(--ease-out), border-color 220ms var(--ease-out)",
         fontFamily: "inherit",
+        textAlign: "left",
       }}
     >
       <span
         style={{
-          width: 13,
-          height: 13,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          border: `1px solid ${on ? "#ffffff" : "rgba(15,23,42,0.3)"}`,
-          borderRadius: 3,
-          fontSize: 9,
-          background: on ? "rgba(255,255,255,0.18)" : "transparent",
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: on ? color : "var(--ink-5)",
+          boxShadow: on
+            ? `0 0 0 3px ${color}33`
+            : `0 0 0 0 transparent`,
+          transition: "box-shadow 220ms var(--ease-out), background 220ms var(--ease-out)",
+          flex: "none",
         }}
-      >
-        {on ? "✓" : ""}
-      </span>
-      <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+      />
+      <span style={{ flex: 1 }}>{label}</span>
       <span
+        className="font-mono"
         style={{
-          fontSize: 9.5,
-          color: on ? "rgba(255,255,255,0.7)" : "#94a3b8",
-          fontWeight: 400,
-          fontStyle: "italic",
+          fontSize: 9,
+          color: on ? "rgba(255,255,255,0.55)" : "var(--ink-4)",
+          fontWeight: 500,
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
         }}
       >
         {hint}
@@ -286,57 +282,87 @@ function Sidebar({
   } else {
     mainPanel = (
       <div
-        style={{ color: "#475569", fontSize: 11.5, lineHeight: 1.6, padding: 14 }}
+        style={{
+          color: "var(--ink-2)",
+          fontSize: 11.5,
+          lineHeight: 1.6,
+          padding: "16px 14px 20px",
+        }}
       >
-        <p
+        <span
+          className="pill-badge"
+          style={{ fontSize: 9, padding: "3px 9px", marginBottom: 14 }}
+        >
+          <span
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: 999,
+              background: "var(--accent)",
+              display: "inline-block",
+            }}
+          />
+          ATLAS · v0.1
+        </span>
+
+        <h2
           style={{
-            marginTop: 0,
-            color: "#1e293b",
+            margin: "10px 0 0",
+            color: "var(--ink)",
+            fontSize: 19,
+            lineHeight: 1.15,
+            letterSpacing: "-0.025em",
             fontWeight: 500,
-            fontSize: 12.5,
-            letterSpacing: "0.01em",
-            marginBottom: 8,
           }}
         >
-          Pennsylvania Anthracite AMD Atlas
-        </p>
+          Pennsylvania
+          <br />
+          Anthracite AMD
+        </h2>
+
         <p
           style={{
-            color: "#64748b",
-            fontSize: 10.5,
-            fontStyle: "italic",
-            marginTop: 0,
-            marginBottom: 20,
-            letterSpacing: "0.02em",
-            lineHeight: 1.6,
+            color: "var(--ink-3)",
+            fontSize: 11.5,
+            marginTop: 10,
+            marginBottom: 22,
+            letterSpacing: "-0.005em",
+            lineHeight: 1.55,
           }}
         >
           Pick a top-ranked entity below, or click any map marker to drill in.
         </p>
 
         <div
+          className="font-mono"
           style={{
-            fontSize: 9.5,
-            fontWeight: 600,
-            color: "#475569",
-            letterSpacing: "0.14em",
+            fontSize: 9,
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.16em",
             textTransform: "uppercase",
             marginBottom: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          Intensity Layers
+          <span>Intensity</span>
+          <span
+            style={{ flex: 1, height: 1, background: "var(--hairline)" }}
+          />
         </div>
         <VizToggle
           on={!!vizColliery}
           label="Colliery pollution"
-          color="#7f1d1d"
-          hint={vizColliery ? "heatmap + columns" : "off"}
+          color="var(--accent-deep)"
+          hint={vizColliery ? "heat + cols" : "off"}
           onClick={onToggleVizColliery}
         />
         <VizToggle
           on={!!vizAmd}
           label="AMD discharge"
-          color="#b91c1c"
+          color="var(--accent)"
           hint={vizAmd ? "heatmap" : "off"}
           onClick={onToggleVizAmd}
         />
@@ -358,16 +384,17 @@ function Sidebar({
         />
 
         <p
+          className="font-mono"
           style={{
-            color: "#94a3b8",
-            fontSize: 9.5,
-            fontStyle: "italic",
+            color: "var(--ink-4)",
+            fontSize: 9,
             marginTop: 20,
-            letterSpacing: "0.02em",
+            letterSpacing: "0.14em",
             lineHeight: 1.55,
+            textTransform: "uppercase",
           }}
         >
-          See top-right panel for full legend and view mode.
+          ↗ Legend &amp; view mode — top-right
         </p>
       </div>
     );
@@ -376,28 +403,22 @@ function Sidebar({
   // ── Floating panel; collapsed = compact pill, expanded = full panel
   return (
     <aside
+      className="surface"
       style={{
         position: "absolute",
-        top: 12,
-        left: 12,
+        top: 14,
+        left: 14,
         zIndex: 5,
         width: visiblyCollapsed
           ? SIDEBAR_WIDTH_COLLAPSED
           : SIDEBAR_WIDTH_EXPANDED,
-        maxHeight: "calc(100vh - 24px)",
-        background: PANEL_BG,
-        border: PANEL_BORDER,
-        borderRadius: PANEL_RADIUS,
-        boxShadow: PANEL_SHADOW,
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+        maxHeight: "calc(100vh - 28px)",
         fontSize: 11,
-        color: "#0f172a",
         overflow: "hidden",
-        letterSpacing: "0.01em",
         display: "flex",
         flexDirection: "column",
-        transition: `width ${ANIM_MS}ms ${ANIM_EASE}`,
+        transition: `width ${ANIM_MS}ms ${ANIM_EASE}, border-radius ${ANIM_MS}ms ${ANIM_EASE}`,
+        borderRadius: visiblyCollapsed ? 999 : "var(--radius-lg)",
       }}
     >
       <button
@@ -408,40 +429,65 @@ function Sidebar({
           width: "100%",
           background: "transparent",
           border: "none",
-          padding: "10px 14px",
+          borderBottom: visiblyCollapsed
+            ? "1px solid transparent"
+            : "1px solid var(--hairline-soft)",
+          padding: "12px 14px 12px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
           gap: 10,
-          fontSize: 11,
-          fontWeight: 400,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          color: "#0f172a",
+          color: "var(--ink)",
           fontFamily: "inherit",
           flex: "none",
+          transition: `border-color ${ANIM_MS}ms ${ANIM_EASE}`,
         }}
       >
-        <span style={{ fontSize: 10, color: "#94a3b8" }}>
-          {visiblyCollapsed ? "▸" : "▾"}
-        </span>
-        <span>TRACE</span>
         <span
+          style={{
+            fontSize: 9,
+            color: "var(--ink-3)",
+            transform: visiblyCollapsed ? "rotate(0deg)" : "rotate(90deg)",
+            transition: `transform ${ANIM_MS}ms ${ANIM_EASE}`,
+            display: "inline-block",
+            lineHeight: 1,
+            width: 9,
+          }}
+        >
+          ▸
+        </span>
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "-0.015em",
+            lineHeight: 1,
+            color: "var(--ink)",
+          }}
+        >
+          TRACE
+          <span style={{ color: "var(--accent)" }}>.</span>
+        </span>
+        <span
+          className="font-mono"
           style={{
             marginLeft: "auto",
             fontSize: 8.5,
-            fontWeight: 400,
-            fontStyle: "italic",
-            color: "#94a3b8",
-            letterSpacing: "0.06em",
-            textTransform: "none",
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
             opacity: visiblyCollapsed ? 0 : 1,
             transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
             whiteSpace: "nowrap",
+            padding: "2px 8px",
+            border: "1px solid var(--hairline)",
+            borderRadius: 999,
+            background: "var(--surface-quiet)",
           }}
         >
-          AMD Harm Atlas
+          Harm Atlas
         </span>
       </button>
 
@@ -462,8 +508,8 @@ function Sidebar({
         {/* search + (optional) exit-analysis pill */}
         <div
           style={{
-            padding: "0 12px 10px",
-            borderBottom: "1px solid rgba(15,23,42,0.06)",
+            padding: "10px 12px 12px",
+            borderBottom: "1px solid var(--hairline-soft)",
             position: "relative",
             flex: "none",
           }}
@@ -476,33 +522,49 @@ function Sidebar({
             style={{
               width: "100%",
               boxSizing: "border-box",
-              padding: "6px 10px",
-              borderRadius: 8,
-              border: "1px solid rgba(15,23,42,0.15)",
-              background: "rgba(255,255,255,0.7)",
+              padding: "7px 14px",
+              borderRadius: 999,
+              border: "1px solid var(--hairline)",
+              background: "var(--surface-input)",
               fontSize: 11,
+              color: "var(--ink)",
               outline: "none",
               fontFamily: "inherit",
+              letterSpacing: "-0.005em",
+              transition:
+                "border-color 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--ink)";
+              e.currentTarget.style.background = "var(--surface-input-focus)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,0,0,0.04)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "var(--hairline)";
+              e.currentTarget.style.background = "var(--surface-input)";
+              e.currentTarget.style.boxShadow = "none";
             }}
           />
           {searchResults.length > 0 ? (
             <div
               style={{
                 position: "absolute",
-                top: "calc(100% - 4px)",
+                top: "calc(100% - 2px)",
                 left: 12,
                 right: 12,
                 zIndex: 10,
-                background: "rgba(255,255,255,0.98)",
-                border: "1px solid rgba(15,23,42,0.12)",
-                borderRadius: 8,
-                boxShadow: "0 8px 24px rgba(15,23,42,0.18)",
+                background: "var(--surface-strong)",
+                border: "1px solid var(--hairline)",
+                borderRadius: 12,
+                boxShadow: "var(--shadow-panel)",
                 maxHeight: 280,
                 overflow: "auto",
+                backdropFilter: "blur(40px) saturate(180%)",
+                WebkitBackdropFilter: "blur(40px) saturate(180%)",
               }}
               className="sidebar-scroll"
             >
-              {searchResults.map((hit) => (
+              {searchResults.map((hit, idx) => (
                 <button
                   key={`${hit.kind}-${hit.id}`}
                   type="button"
@@ -511,28 +573,44 @@ function Sidebar({
                     display: "block",
                     width: "100%",
                     textAlign: "left",
-                    padding: "6px 10px",
+                    padding: "8px 12px",
                     background: "transparent",
                     border: "none",
-                    borderBottom: "1px solid rgba(15,23,42,0.06)",
+                    borderBottom:
+                      idx < searchResults.length - 1
+                        ? "1px solid var(--hairline-soft)"
+                        : "none",
                     cursor: "pointer",
                     fontSize: 11,
+                    color: "var(--ink)",
                     fontFamily: "inherit",
+                    transition: "background 120ms var(--ease-out)",
                   }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "rgba(0,0,0,0.04)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
                 >
                   <span
+                    className="font-mono"
                     style={{
                       color:
                         hit.kind === "colliery"
-                          ? "#7f1d1d"
+                          ? "var(--accent-deep)"
                           : hit.kind === "station"
-                            ? "#5b21b6"
-                            : "#0f172a",
-                      fontWeight: 700,
+                            ? "var(--accent-steel)"
+                            : "var(--accent)",
+                      fontWeight: 500,
                       fontSize: 8.5,
-                      letterSpacing: "0.08em",
+                      letterSpacing: "0.14em",
                       textTransform: "uppercase",
                       marginRight: 8,
+                      padding: "2px 7px",
+                      border: "1px solid currentColor",
+                      borderRadius: 999,
+                      opacity: 0.85,
                     }}
                   >
                     {hit.kind}
@@ -541,8 +619,7 @@ function Sidebar({
                   {hit.sub ? (
                     <span
                       style={{
-                        color: "#94a3b8",
-                        fontStyle: "italic",
+                        color: "var(--ink-4)",
                         marginLeft: 6,
                       }}
                     >
@@ -559,19 +636,36 @@ function Sidebar({
               type="button"
               onClick={onExitFocus}
               style={{
-                marginTop: 8,
-                fontSize: 10,
-                color: "#475569",
-                background: "transparent",
-                border: "1px solid rgba(15,23,42,0.18)",
-                borderRadius: 6,
-                padding: "3px 10px",
+                marginTop: 10,
+                fontSize: 10.5,
+                color: "var(--ink-2)",
+                background: "var(--surface-strong)",
+                border: "1px solid var(--hairline)",
+                borderRadius: 999,
+                padding: "4px 12px",
                 cursor: "pointer",
                 fontFamily: "inherit",
-                letterSpacing: "0.02em",
+                letterSpacing: "-0.005em",
+                fontWeight: 500,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                transition:
+                  "background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--ink)";
+                e.currentTarget.style.color = "var(--bg)";
+                e.currentTarget.style.borderColor = "var(--ink)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--surface-strong)";
+                e.currentTarget.style.color = "var(--ink-2)";
+                e.currentTarget.style.borderColor = "var(--hairline)";
               }}
             >
-              ✕ Exit analysis
+              <span style={{ fontSize: 9, lineHeight: 1 }}>✕</span>
+              Exit
             </button>
           ) : null}
         </div>

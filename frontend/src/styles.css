@@ -1,3 +1,80 @@
+/* ─────────────────────────────────────────────────────────────
+   TRACE — design tokens
+   Direction: cool technical white (Linear × Next.js × Augen).
+   Pure white / near-black ink, hairline borders, frosted glass
+   without grain, pill-shaped controls. Every element should feel
+   precision-machined.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* — Surfaces — pure cool whites, no warmth */
+  --bg:               #ffffff;
+  --bg-2:             #fafafa;
+  --bg-3:             #f4f4f5;
+  --bg-4:             #ebebed;
+
+  /* — Ink — neutral black scale */
+  --ink:              #0a0a0a;
+  --ink-2:            #404040;
+  --ink-3:            #737373;
+  --ink-4:            #a3a3a3;
+  --ink-5:            #d4d4d4;
+
+  /* — Hairlines — extremely subtle, layered on white */
+  --hairline-soft:    rgba(0, 0, 0, 0.04);
+  --hairline:         rgba(0, 0, 0, 0.08);
+  --hairline-strong:  rgba(0, 0, 0, 0.14);
+  --hairline-ink:     rgba(0, 0, 0, 0.88);
+
+  /* — Floating frosted surfaces — sit on top of map */
+  --surface:          rgba(255, 255, 255, 0.74);
+  --surface-strong:   rgba(255, 255, 255, 0.92);
+  --surface-quiet:    rgba(255, 255, 255, 0.55);
+  --surface-input:    rgba(0, 0, 0, 0.025);
+  --surface-input-focus: rgba(255, 255, 255, 0.95);
+
+  /* — Single restrained accent — only for AMD severity / interaction */
+  --accent:           #b9341e;     /* rust — for severity / discharge */
+  --accent-deep:      #7a1e10;     /* extreme severity */
+  --accent-soft:      #efd9d2;     /* hover wash */
+  --accent-steel:     #2f4858;     /* stations / water */
+  --accent-moss:      #4d6033;     /* reclaimed */
+
+  /* — Typography — */
+  --font-display:     "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans:        "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+                      "Helvetica Neue", Arial, sans-serif;
+  --font-mono:        "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo,
+                      Consolas, monospace;
+
+  /* — Geometry — pills for interactive, soft rect for surfaces */
+  --radius-pill:      999px;
+  --radius-xs:        4px;
+  --radius-sm:        6px;
+  --radius-md:        10px;
+  --radius-lg:        14px;
+  --radius-xl:        18px;
+
+  /* — Elevation — multi-layer, very crisp */
+  --shadow-panel:
+    0 0 0 0.5px rgba(0, 0, 0, 0.04),
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 8px 22px -10px rgba(0, 0, 0, 0.10),
+    0 30px 60px -24px rgba(0, 0, 0, 0.12);
+  --shadow-pill:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 1px 0 rgba(0, 0, 0, 0.02),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  --shadow-pill-active:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.92),
+    0 1px 2px rgba(0, 0, 0, 0.18);
+
+  /* — Motion — */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+}
+
 html,
 body,
 #root {
@@ -6,14 +83,136 @@ body,
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
-    "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--bg-2);
+  font-feature-settings: "tnum" on, "ss01" on, "cv11" on;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
 }
 
-/* Refined thin scrollbar for sidebar panels */
+/* ───── Utility: type ───── */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+}
+.font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" on, "zero" on, "ss03" on;
+}
+
+/* ───── Utility: floating frosted surface ─────
+   Pure white frosted glass, hairline border, multi-layer shadow.
+   No grain — clarity is the aesthetic. */
+.surface {
+  position: relative;
+  background-color: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  color: var(--ink);
+}
+.surface-strong {
+  background-color: var(--surface-strong);
+}
+
+/* ───── Utility: hairline rule ───── */
+.hairline {
+  height: 1px;
+  background: var(--hairline);
+  border: 0;
+  margin: 0;
+}
+
+/* ───── Utility: monospace pill badge — Next.js-style ─────
+   <span class="pill-badge">PA · 41.2°N</span> */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  border: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+
+/* ───── Pill button — the workhorse interactive element ───── */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+.pill-btn:hover {
+  border-color: var(--hairline-strong);
+  background: var(--bg);
+}
+.pill-btn[data-active="true"] {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.pill-btn[data-tone="accent"][data-active="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pill-btn:active {
+  transform: translateY(0.5px);
+}
+
+/* ───── Pill icon button — square 28×28 with hairline ring ───── */
+.pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease-out);
+}
+.pill-icon:hover {
+  border-color: var(--hairline-strong);
+  color: var(--ink);
+}
+
+/* ───── Refined thin scrollbar ───── */
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
 }
 .sidebar-scroll::-webkit-scrollbar {
   width: 4px;
@@ -23,21 +222,18 @@ body {
   background: transparent;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(0, 0, 0, 0.18);
   border-radius: 9999px;
-  transition: background 150ms ease;
+  transition: background var(--dur-fast) var(--ease-std);
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.65);
+  background: rgba(0, 0, 0, 0.4);
 }
 .sidebar-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* Map exploration cursor: crosshair (GIS / aim feel) instead of Mapbox's
-   default grab. Marker hover swaps to pointer via inline style on the canvas
-   (see MapView.jsx mouseenter handlers), and Mapbox keeps the grabbing cursor
-   during active drag for tactile feedback. */
+/* ───── Map cursor — crosshair for "instrument" feel ───── */
 .mapboxgl-canvas-container.mapboxgl-interactive,
 .mapboxgl-canvas {
   cursor: crosshair;
@@ -46,3 +242,10 @@ body {
   cursor: grabbing;
 }
 
+/* ───── Focus ring — visible but minimal ───── */
+button:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
