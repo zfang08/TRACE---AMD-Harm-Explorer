@@ -64,6 +64,10 @@ function App() {
   const [vizMetal, setVizMetal] = useState(true);
   // 水质摘要：pH + Iron 均值，按站点
   const [wqSummary, setWqSummary] = useState(null);
+  // 地形：是否启用 Mapbox DEM
+  const [terrain, setTerrain] = useState(false);
+  // 等高线：是否叠加 topo contours
+  const [topo, setTopo] = useState(false);
   // 导览模式：null = 未激活；0-N = 当前步骤
   const [tourStep, setTourStep] = useState(null);
   // 导览相机：每步强制 flyTo 到指定坐标，覆盖 analysisFocus 的自动缩放
@@ -474,6 +478,8 @@ function App() {
         onUpstreamResult={setUpstreamResult}
         onIdleOrbitStart={() => { setSidebarCollapsed(true); setLayerPanelCollapsed(true); }}
         cameraTarget={cameraTarget}
+        terrain={terrain}
+        topo={topo}
       />
 
       {introVisible ? (
@@ -490,6 +496,10 @@ function App() {
             counts={counts}
             is3D={is3D}
             onToggle3D={setIs3D}
+            terrain={terrain}
+            onToggleTerrain={setTerrain}
+            topo={topo}
+            onToggleTopo={setTopo}
             collapsed={layerPanelCollapsed}
             onToggle={() => setLayerPanelCollapsed((v) => !v)}
           />

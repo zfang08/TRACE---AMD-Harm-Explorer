@@ -24,6 +24,10 @@ import {
 // 粒子流：跟随 analysisFocus = pollution_source 时自动启动；其他状态停止
 const RUN_PARTICLE_SIM = true;
 
+const TOPO_SOURCE_ID   = "topo-contours-source";
+const TOPO_MINOR_ID    = "topo-contours-minor";
+const TOPO_MAJOR_ID    = "topo-contours-major";
+
 const COLL_SOURCE_ID = "collieries-source";
 const COLL_LAYER_ID = "collieries-layer";
 const STATION_SOURCE_ID = "stations-source";
@@ -412,6 +416,8 @@ function MapView({
   onUpstreamResult,
   onIdleOrbitStart,
   cameraTarget,
+  terrain,
+  topo,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -1863,6 +1869,72 @@ function MapView({
       easing: (t) => 1 - Math.pow(1 - t, 3),
     });
   }, [cameraTarget, layersReady]);
+
+  // ============= 4d. topo：等高线图层（mapbox-terrain-v2）=============
+  // 一个图层显示 tileset 全量等高线（不加 minzoom/filter 限制），
+  // 用 width expression 区分 100m 整数线（粗）和其他线（细）。
+  // tileset 本身在低 zoom 只打包主要间距的线，自然 adaptive；
+  // 去掉我们额外的筛选让低 zoom 也能看到它提供的全部线。
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady) return;
+    if (topo) {
+      if (!map.getSource(TOPO_SOURCE_ID)) {
+        map.addSource(TOPO_SOURCE_ID, {
+          type: "vector",
+          url: "mapbox://mapbox.mapbox-terrain-v2",
+        });
+      }
+      if (!map.getLayer(TOPO_MAJOR_ID)) {
+        map.addLayer(
+          {
+            id: TOPO_MAJOR_ID,
+            type: "line",
+            source: TOPO_SOURCE_ID,
+            "source-layer": "contour",
+            layout: { "line-join": "round", "line-cap": "round" },
+            paint: {
+              "line-color": "#6b6050",
+              "line-width": [
+                "interpolate", ["linear"], ["zoom"],
+                8,  ["case", ["==", ["%", ["get", "ele"], 100], 0], 0.9, 0.4],
+                13, ["case", ["==", ["%", ["get", "ele"], 100], 0], 1.4, 0.7],
+              ],
+              "line-opacity": [
+                "interpolate", ["linear"], ["zoom"],
+                8, 0.28,
+                13, 0.42,
+              ],
+            },
+          },
+          STREAM_LAYER_ID,
+        );
+      }
+    } else {
+      if (map.getLayer(TOPO_MINOR_ID)) map.removeLayer(TOPO_MINOR_ID);
+      if (map.getLayer(TOPO_MAJOR_ID)) map.removeLayer(TOPO_MAJOR_ID);
+      // source 保留以便再次开启时复用
+    }
+  }, [topo, layersReady]);
+
+  // ============= 4e. terrain：动态开关 Mapbox DEM =============
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady) return;
+    if (terrain) {
+      if (!map.getSource("mapbox-dem")) {
+        map.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+      }
+      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+    } else {
+      map.setTerrain(null);
+    }
+  }, [terrain, layersReady]);
 
   // ============= 5. orbit：splash 页时倾斜 + 持续旋转 =============
   // 等 layersReady（数据图层注册完）再开始旋转，避免影响初次渲染。

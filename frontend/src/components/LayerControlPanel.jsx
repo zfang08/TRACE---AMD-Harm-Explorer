@@ -290,7 +290,7 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
 
 /* iOS-style segmented control: one pill track, sliding ink "thumb"
    indicates the active option. Pure white aesthetic, no gradients. */
-function ViewModeRow({ is3D, onToggle3D }) {
+function ViewModeRow({ is3D, onToggle3D, terrain, onToggleTerrain, topo, onToggleTopo }) {
   return (
     <div
       style={{
@@ -369,6 +369,40 @@ function ViewModeRow({ is3D, onToggle3D }) {
           </button>
         ))}
       </div>
+
+      {/* Terrain + Topo toggles */}
+      {[
+        { label: "Terrain", hint: ["flat", "DEM 1.5×"], on: !!terrain, toggle: onToggleTerrain },
+        { label: "Topo",    hint: ["off",  "contours"], on: !!topo,    toggle: onToggleTopo    },
+      ].map(({ label, hint, on, toggle }) => (
+        <div
+          key={label}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 7,
+            fontSize: 10.5,
+            fontWeight: 500,
+            letterSpacing: "-0.005em",
+            color: "var(--ink)",
+          }}
+        >
+          <HairlineToggle on={on} onChange={(v) => toggle?.(v)} />
+          <span style={{ flex: 1 }}>{label}</span>
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 8.5,
+              color: on ? "var(--ink-3)" : "var(--ink-5)",
+              letterSpacing: "0.08em",
+              transition: "color 200ms var(--ease-out)",
+            }}
+          >
+            {on ? hint[1] : hint[0]}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -379,6 +413,10 @@ function LayerControlPanel({
   counts,
   is3D,
   onToggle3D,
+  terrain,
+  onToggleTerrain,
+  topo,
+  onToggleTopo,
   collapsed,
   onToggle,
 }) {
@@ -493,7 +531,16 @@ function LayerControlPanel({
         }}
         aria-hidden={visiblyCollapsed}
       >
-        {onToggle3D ? <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} /> : null}
+        {onToggle3D ? (
+          <ViewModeRow
+            is3D={is3D}
+            onToggle3D={onToggle3D}
+            terrain={terrain}
+            onToggleTerrain={onToggleTerrain}
+            topo={topo}
+            onToggleTopo={onToggleTopo}
+          />
+        ) : null}
         <LayerRow
           layerKey="collieries"
           on={visibleLayers.collieries}
