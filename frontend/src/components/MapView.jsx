@@ -652,6 +652,28 @@ function MapView({
         };
 
         function setupLayers() {
+          // ── Sky：大气散射效果，pitch > 0 时地平线处可见，2D 自动隐藏
+          map.addLayer({
+            id: "sky",
+            type: "sky",
+            paint: {
+              "sky-type": "gradient",
+              "sky-gradient-center": [0, 0],
+              "sky-gradient-radius": 90,
+              "sky-gradient": [
+                "interpolate", ["linear"], ["sky-radial-progress"],
+                0.0, "rgba(195, 215, 235, 1.0)",
+                0.5, "rgba(220, 233, 244, 1.0)",
+                1.0, "rgba(240, 245, 250, 1.0)",
+              ],
+              "sky-opacity": [
+                "interpolate", ["linear"], ["zoom"],
+                8, 0.55,
+                12, 0.82,
+              ],
+            },
+          });
+
           // ── 底图单色化：把 light-v11 压缩成接近白纸，让 AMD 叠加层独占
           //    视觉重量。按 type 批量覆写，try/catch 跳过不支持某属性的层。
           for (const sl of map.getStyle().layers || []) {
