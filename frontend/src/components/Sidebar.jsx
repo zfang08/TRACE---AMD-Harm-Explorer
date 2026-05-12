@@ -100,6 +100,9 @@ function Sidebar({
   onToggleAddMode,
   onRemoveExtraSource,
   maxSimSources,
+  upstreamKm,
+  onUpstreamKmChange,
+  upstreamResult,
 }) {
   // undefined = fetch in progress, null = fetch done but not found, object = found
   const [colliery, setColliery] = useState(undefined);
@@ -284,6 +287,9 @@ function Sidebar({
         <SegmentPanel
           segmentProperties={segmentProperties}
           onHarmSelect={onHarmSelect}
+          upstreamKm={upstreamKm}
+          onUpstreamKmChange={onUpstreamKmChange}
+          upstreamResult={upstreamResult}
         />
       );
     }

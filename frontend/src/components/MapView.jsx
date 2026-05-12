@@ -10,6 +10,7 @@ import {
   getStreamSegments,
 } from "../services/api";
 import { buildSegmentsById } from "../sim/segmentGraph";
+import { buildUpstreamMap, traceUpstream, findUpstreamCollieries } from "../sim/upstreamTrace";
 import {
   buildPolylineFromPath,
   pointAndTangentAtDistance,
@@ -52,6 +53,9 @@ const EVIDENCE_PULSE_LAYER_ID = "evidence-pulse-layer";
 // 图标 hover 光晕
 const HOVER_SOURCE_ID = "hover-glow-source";
 const HOVER_LAYER_ID = "hover-glow-layer";
+// 上游溯源高亮
+const UPSTREAM_SOURCE_ID = "upstream-trace-source";
+const UPSTREAM_LAYER_ID  = "upstream-trace-layer";
 
 // 3D 柱：半径 200m（远视图也看得见），高度 = score × 80
 const EXTRUDE_RADIUS_M = 200;
@@ -396,6 +400,8 @@ function MapView({
   extraSourceIds,
   addMode,
   onToggleSourceInSim,
+  upstreamKm,
+  onUpstreamResult,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -407,6 +413,7 @@ function MapView({
     onFocus,
     onExitFocus,
     onToggleSourceInSim,
+    onUpstreamResult,
     addMode,
     analysisFocus,
   });
@@ -415,10 +422,13 @@ function MapView({
       onFocus,
       onExitFocus,
       onToggleSourceInSim,
+      onUpstreamResult,
       addMode,
       analysisFocus,
     };
-  }, [onFocus, onExitFocus, onToggleSourceInSim, addMode, analysisFocus]);
+  }, [onFocus, onExitFocus, onToggleSourceInSim, onUpstreamResult, addMode, analysisFocus]);
+  // Lazy-built reverse index for upstream traversal (built once after loadAll)
+  const upstreamMapRef = useRef(null);
   // 加载完毕的标志——用 state 不用 ref：让分析 paint 的 useEffect 能在
   // "图层刚注册完"这个变化上自动重跑一次。否则用户在 loadAll 完成前点击就会
   // 永远看不到第一次的高亮（要再点一次触发 analysisFocus 重新变化才行）。
@@ -677,6 +687,25 @@ function MapView({
                 "circle-opacity": 0.14,
                 "circle-blur": 0.65,
               },
+            });
+          }
+
+          // upstream trace 高亮：segment 焦点时用 teal 线标出上游网络
+          if (!map.getSource(UPSTREAM_SOURCE_ID)) {
+            map.addSource(UPSTREAM_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer({
+              id: UPSTREAM_LAYER_ID,
+              type: "line",
+              source: UPSTREAM_SOURCE_ID,
+              paint: {
+                "line-color": "#2f4858",
+                "line-width": 2.2,
+                "line-opacity": 0.82,
+              },
+              layout: { "line-cap": "round", "line-join": "round" },
             });
           }
 
@@ -1335,6 +1364,47 @@ function MapView({
       );
     }
   }, [visibleLayers, layersReady]);
+
+  // ============= 3a-3. upstream trace =============
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady) return;
+
+    const upSrc = map.getSource(UPSTREAM_SOURCE_ID);
+    const empty = { type: "FeatureCollection", features: [] };
+
+    if (analysisFocus?.kind !== "segment") {
+      upSrc?.setData(empty);
+      cbRef.current.onUpstreamResult?.(null);
+      return;
+    }
+
+    const { segmentsById } = simRef.current;
+    if (!segmentsById) return;
+
+    // Build reverse index once; cache across upstreamKm changes
+    if (!upstreamMapRef.current) {
+      upstreamMapRef.current = buildUpstreamMap(segmentsById);
+    }
+
+    const segIds = traceUpstream(
+      segmentsById,
+      upstreamMapRef.current,
+      analysisFocus.id,
+      upstreamKm || 20,
+    );
+
+    const features = segIds.map((id) => segmentsById[id]?.feature).filter(Boolean);
+    upSrc?.setData({ type: "FeatureCollection", features });
+
+    const collieries = findUpstreamCollieries(
+      segIds,
+      segmentsById,
+      dataRefs.current.collieries || [],
+    );
+
+    cbRef.current.onUpstreamResult?.({ segmentIds: segIds, collieries });
+  }, [analysisFocus, upstreamKm, layersReady]);
 
   // ============= 3b. evidence chain 动画 =============
   // 触发：analysisFocus = pollution_source 且 relatedIds.colliery_ids 非空。

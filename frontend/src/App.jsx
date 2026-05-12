@@ -49,6 +49,9 @@ function App() {
   const [introVisible, setIntroVisible] = useState(true);
   // 粒子模拟开关：用户在 source/harm panel 上点 simulate 按钮才启动
   const [simulating, setSimulating] = useState(false);
+  // 上游溯源：距离挡位 + 结果
+  const [upstreamKm, setUpstreamKm] = useState(20);
+  const [upstreamResult, setUpstreamResult] = useState(null);
   // 2D / 3D 视角：默认 3D（splash 退出后 pitch=45°），右上 panel 切换
   const [is3D, setIs3D] = useState(true);
   // Viz 强度图层开关（独立于 2D/3D 相机）：sidebar 上的两个 toggle 控制
@@ -374,6 +377,8 @@ function App() {
         extraSourceIds={extraSourceIds}
         addMode={addMode}
         onToggleSourceInSim={toggleSourceInSim}
+        upstreamKm={upstreamKm}
+        onUpstreamResult={setUpstreamResult}
       />
 
       {introVisible ? (
@@ -417,6 +422,9 @@ function App() {
             onToggleAddMode={toggleAddMode}
             onRemoveExtraSource={removeExtraSource}
             maxSimSources={MAX_SIM_SOURCES}
+            upstreamKm={upstreamKm}
+            onUpstreamKmChange={setUpstreamKm}
+            upstreamResult={upstreamResult}
           />
         </>
       ) : null}
