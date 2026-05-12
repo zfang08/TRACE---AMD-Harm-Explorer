@@ -303,6 +303,21 @@ function Sidebar({
           padding: "16px 14px 20px",
         }}
       >
+        <h2
+          style={{
+            margin: "0 0 10px",
+            color: "var(--ink)",
+            fontSize: 19,
+            lineHeight: 1.15,
+            letterSpacing: "-0.025em",
+            fontWeight: 500,
+          }}
+        >
+          Pennsylvania
+          <br />
+          Anthracite AMD
+        </h2>
+
         <span
           className="pill-badge"
           style={{ fontSize: 9, padding: "3px 9px", marginBottom: 14 }}
@@ -318,21 +333,6 @@ function Sidebar({
           />
           ATLAS · v0.1
         </span>
-
-        <h2
-          style={{
-            margin: "10px 0 0",
-            color: "var(--ink)",
-            fontSize: 19,
-            lineHeight: 1.15,
-            letterSpacing: "-0.025em",
-            fontWeight: 500,
-          }}
-        >
-          Pennsylvania
-          <br />
-          Anthracite AMD
-        </h2>
 
         <p
           style={{

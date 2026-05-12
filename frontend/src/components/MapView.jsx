@@ -1021,8 +1021,8 @@ function MapView({
                 source: EVIDENCE_CHAIN_SOURCE_ID,
                 paint: {
                   "line-color": "#404040",
-                  "line-width": 1.4,
-                  "line-dasharray": [3, 5],
+                  "line-width": 0.8,
+                  "line-dasharray": [2, 2],
                   "line-opacity": ["coalesce", ["get", "opacity"], 0],
                 },
               },

@@ -104,7 +104,7 @@ function HarmRow({ rank, item, onPick }) {
       onClick={() => onPick?.(item.id)}
       style={{
         display: "grid",
-        gridTemplateColumns: "18px 48px 1fr auto",
+        gridTemplateColumns: "18px auto 1fr auto",
         alignItems: "center",
         gap: 8,
         width: "100%",
