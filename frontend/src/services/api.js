@@ -62,6 +62,28 @@ export async function getHarmsBySegmentId(segmentId) {
   return res.json();
 }
 
+export async function getHarmNarrative(id) {
+  const res = await fetch(`${API_BASE}/harms/${encodeURIComponent(id)}/narrative`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "request failed");
+  }
+  return res.json();
+}
+
+export async function askHarmQuestion(id, question) {
+  const res = await fetch(`${API_BASE}/harms/${encodeURIComponent(id)}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "request failed");
+  }
+  return res.json();
+}
+
 export async function getRelatedIds(kind, id) {
   const res = await fetch(
     `${API_BASE}/harms/related/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`,

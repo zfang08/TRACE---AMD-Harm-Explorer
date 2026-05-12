@@ -510,6 +510,7 @@ function MapView({
       style: "mapbox://styles/mapbox/light-v11",
       center: [-76.3, 40.8],
       zoom: 8,
+      keyboard: false,
     });
     mapRef.current = map;
     // top-right 已经被 LayerControlPanel 占了，挪到 bottom-right 错开

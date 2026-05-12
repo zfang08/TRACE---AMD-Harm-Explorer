@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getHarmById } from "../services/api";
+import { getHarmById, getHarmNarrative, askHarmQuestion } from "../services/api";
 import SimulateBlock from "./SimulateBlock";
 
 const SEVERITY_BG = {
@@ -29,6 +29,11 @@ function PollutionSourcePanel({
 }) {
   // undefined = fetch in progress, null = not found, object = found
   const [harm, setHarm] = useState(undefined);
+  const [narrative, setNarrative] = useState(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState(null);
+  const [answerLoading, setAnswerLoading] = useState(false);
 
   useEffect(() => {
     if (!pollutionSourceId) { setHarm(undefined); return; }
@@ -39,6 +44,19 @@ function PollutionSourcePanel({
       .catch(() => !cancelled && setHarm(null));
     return () => { cancelled = true; };
   }, [pollutionSourceId]);
+
+  useEffect(() => {
+    const harmId = harm?.id;
+    if (!harmId) return;
+    let cancelled = false;
+    setNarrative(null);
+    setNarrativeLoading(true);
+    getHarmNarrative(harmId)
+      .then((d) => { if (!cancelled) setNarrative(d.narrative ?? "—"); })
+      .catch((e) => { if (!cancelled) setNarrative(`Error: ${e.message}`); })
+      .finally(() => { if (!cancelled) setNarrativeLoading(false); });
+    return () => { cancelled = true; };
+  }, [harm?.id]);
 
   if (harm === undefined) {
     return (
@@ -156,6 +174,96 @@ function PollutionSourcePanel({
         <span className="pill-badge font-mono" style={{ fontSize: 10 }}>{km.n_stations ?? 0} stations</span>
         <span style={{ fontSize: 10, color: "var(--ink-4)" }}>with data</span>
       </div>
+
+      {(narrativeLoading || narrative !== null) ? (
+        <div
+          style={{
+            marginTop: 16,
+            padding: "10px 12px",
+            background: "var(--bg-3)",
+            border: "1px solid var(--hairline)",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            className="font-mono"
+            style={{
+              fontSize: 9,
+              fontWeight: 500,
+              color: "var(--ink-3)",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              marginBottom: 7,
+            }}
+          >
+            AI Summary
+          </div>
+
+          {narrativeLoading ? (
+            <div style={{ height: 28, background: "var(--hairline)", borderRadius: 3, opacity: 0.5 }} />
+          ) : (
+            <p style={{ margin: 0, fontSize: 11, lineHeight: 1.65, color: "var(--ink-2)" }}>
+              {narrative}
+            </p>
+          )}
+
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            <input
+              type="text"
+              placeholder="Ask AI…"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && question.trim() && !answerLoading && harm?.id) {
+                  setAnswer(null);
+                  setAnswerLoading(true);
+                  askHarmQuestion(harm.id, question)
+                    .then((d) => setAnswer(d.answer ?? "—"))
+                    .catch((e) => setAnswer(`Error: ${e.message}`))
+                    .finally(() => setAnswerLoading(false));
+                }
+              }}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: "5px 10px",
+                borderRadius: 999,
+                border: "1px solid var(--hairline-strong)",
+                background: "var(--bg)",
+                fontSize: 10.5,
+                color: "var(--ink)",
+                fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              disabled={!question.trim() || answerLoading}
+              className="pill-btn"
+              style={{ fontSize: 11, padding: "4px 10px", flex: "none", opacity: question.trim() ? 1 : 0.4 }}
+              onClick={() => {
+                if (!question.trim() || answerLoading || !harm?.id) return;
+                setAnswer(null);
+                setAnswerLoading(true);
+                askHarmQuestion(harm.id, question)
+                  .then((d) => setAnswer(d.answer ?? "—"))
+                  .catch((e) => setAnswer(`Error: ${e.message}`))
+                  .finally(() => setAnswerLoading(false));
+              }}
+            >
+              ↵
+            </button>
+          </div>
+
+          {answerLoading ? (
+            <div style={{ height: 24, background: "var(--hairline)", borderRadius: 3, opacity: 0.5, marginTop: 8 }} />
+          ) : answer ? (
+            <p style={{ margin: "8px 0 0", fontSize: 11, lineHeight: 1.65, color: "var(--ink)" }}>
+              {answer}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {onToggleSimulate ? (
         <SimulateBlock
