@@ -46,6 +46,7 @@ function App() {
   });
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [layerPanelCollapsed, setLayerPanelCollapsed] = useState(false);
   // Splash 页：默认显示，点击进入后翻 false
   const [introVisible, setIntroVisible] = useState(true);
   // 粒子模拟开关：用户在 source/harm panel 上点 simulate 按钮才启动
@@ -389,6 +390,7 @@ function App() {
         onToggleSourceInSim={toggleSourceInSim}
         upstreamKm={upstreamKm}
         onUpstreamResult={setUpstreamResult}
+        onIdleOrbitStart={() => { setSidebarCollapsed(true); setLayerPanelCollapsed(true); }}
       />
 
       {introVisible ? (
@@ -405,6 +407,8 @@ function App() {
             counts={counts}
             is3D={is3D}
             onToggle3D={setIs3D}
+            collapsed={layerPanelCollapsed}
+            onToggle={() => setLayerPanelCollapsed((v) => !v)}
           />
 
           <Sidebar

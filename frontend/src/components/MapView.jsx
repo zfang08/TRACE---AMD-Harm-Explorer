@@ -410,6 +410,7 @@ function MapView({
   onToggleSourceInSim,
   upstreamKm,
   onUpstreamResult,
+  onIdleOrbitStart,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -431,10 +432,11 @@ function MapView({
       onExitFocus,
       onToggleSourceInSim,
       onUpstreamResult,
+      onIdleOrbitStart,
       addMode,
       analysisFocus,
     };
-  }, [onFocus, onExitFocus, onToggleSourceInSim, onUpstreamResult, addMode, analysisFocus]);
+  }, [onFocus, onExitFocus, onToggleSourceInSim, onUpstreamResult, onIdleOrbitStart, addMode, analysisFocus]);
   // Lazy-built reverse index for upstream traversal (built once after loadAll)
   const upstreamMapRef = useRef(null);
   // 加载完毕的标志——用 state 不用 ref：让分析 paint 的 useEffect 能在
@@ -465,6 +467,9 @@ function MapView({
     lastT: null,
     raf: null,
   });
+
+  // idle orbit 状态
+  const idleOrbitRef = useRef({ active: false, raf: null, idleTimer: null, startTimer: null });
 
   // 因果链动画状态（也是 mutate in place）
   const evidenceRef = useRef({
@@ -1901,7 +1906,55 @@ function MapView({
     }
   }, [orbit, layersReady]);
 
-  // ============= 5b. 用户切换 2D / 3D（splash 之后）=============
+  // ============= 5b. idle orbit：30s 无操作后自动 3D 慢转 =============
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady || orbit) return;
+
+    const io = idleOrbitRef.current;
+
+    function stopOrbit() {
+      io.active = false;
+      if (io.raf)        { cancelAnimationFrame(io.raf); io.raf = null; }
+      if (io.startTimer) { clearTimeout(io.startTimer);  io.startTimer = null; }
+    }
+
+    function startOrbit() {
+      if (io.active) return;
+      io.active = true;
+      cbRef.current.onIdleOrbitStart?.();
+      map.easeTo({ pitch: 45, duration: 1000, easing: (t) => 1 - Math.pow(1 - t, 3) });
+      io.startTimer = setTimeout(() => {
+        if (!io.active || !mapRef.current) return;
+        let bearing = map.getBearing();
+        const tick = () => {
+          if (!io.active || !mapRef.current) return;
+          bearing = (bearing + 0.018) % 360;
+          map.setBearing(bearing);
+          io.raf = requestAnimationFrame(tick);
+        };
+        io.raf = requestAnimationFrame(tick);
+      }, 1000);
+    }
+
+    function resetTimer() {
+      stopOrbit();
+      if (io.idleTimer) clearTimeout(io.idleTimer);
+      io.idleTimer = setTimeout(startOrbit, 30000);
+    }
+
+    const EVENTS = ["mousemove", "mousedown", "keydown", "wheel", "touchstart", "pointerdown"];
+    EVENTS.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      EVENTS.forEach((e) => document.removeEventListener(e, resetTimer));
+      stopOrbit();
+      if (io.idleTimer) { clearTimeout(io.idleTimer); io.idleTimer = null; }
+    };
+  }, [layersReady, orbit]);
+
+  // ============= 5c. 用户切换 2D / 3D（splash 之后）=============
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !layersReady || orbit) return;

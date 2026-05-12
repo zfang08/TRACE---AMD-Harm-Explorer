@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; // useState kept for hasMounted
 
 /**
  * Floating top-right layer + legend panel.
@@ -379,8 +379,9 @@ function LayerControlPanel({
   counts,
   is3D,
   onToggle3D,
+  collapsed,
+  onToggle,
 }) {
-  const [collapsed, setCollapsed] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setHasMounted(true));
@@ -415,7 +416,7 @@ function LayerControlPanel({
     >
       <button
         type="button"
-        onClick={() => setCollapsed((v) => !v)}
+        onClick={onToggle}
         aria-label={collapsed ? "Expand layer panel" : "Collapse layer panel"}
         style={{
           width: "100%",
