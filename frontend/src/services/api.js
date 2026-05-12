@@ -70,6 +70,12 @@ export async function getRelatedIds(kind, id) {
   return res.json();
 }
 
+export async function getWqSummary() {
+  const res = await fetch(`${API_BASE}/stations/wq-summary`);
+  if (!res.ok) throw new Error("Failed to fetch wq summary");
+  return res.json();
+}
+
 export async function getStationSamples(stationId, opts = {}) {
   const params = new URLSearchParams();
   if (opts.characteristic) params.set("characteristic", opts.characteristic);

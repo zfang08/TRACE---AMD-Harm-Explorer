@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from services.harm_service import harms_for_station
 from services.sample_service import (
     get_samples_for_station,
+    get_wq_summary,
     list_characteristics_for_station,
 )
 from services.station_service import get_station_by_id, load_stations
@@ -14,6 +15,20 @@ station_routes = Blueprint("station_routes", __name__, url_prefix="/api/stations
 def list_stations():
     """返回所有监测站。"""
     return jsonify(load_stations())
+
+
+@station_routes.get("/wq-summary")
+def wq_summary():
+    """每个站点的 pH 和 Iron 均值，附带经纬度，供前端水质热力图使用。"""
+    summaries = {s["station_id"]: s for s in get_wq_summary()}
+    stations_by_id = {s["id"]: s for s in load_stations()}
+    result = []
+    for station_id, summary in summaries.items():
+        s = stations_by_id.get(station_id)
+        if not s or s.get("latitude") is None or s.get("longitude") is None:
+            continue
+        result.append({**summary, "lat": s["latitude"], "lon": s["longitude"]})
+    return jsonify(result)
 
 
 @station_routes.get("/<station_id>")

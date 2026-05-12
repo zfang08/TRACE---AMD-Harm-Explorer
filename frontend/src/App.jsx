@@ -9,6 +9,7 @@ import {
   getPollutionSources,
   getRelatedIds,
   getStations,
+  getWqSummary,
 } from "./services/api";
 
 const EMPTY_RELATED = {
@@ -21,7 +22,7 @@ const EMPTY_RELATED = {
 
 // Top-K ranking 用：严重度权重
 const SEVERITY_WEIGHT = { extreme: 4, high: 3, medium: 2, low: 1 };
-const TOP_K = 8;
+const TOP_K = 5;
 // 多源粒子模拟最大同时参与的 AMD 数（含 anchor）。粒子总预算在 MapView 控制。
 const MAX_SIM_SOURCES = 30;
 const INACTIVE_STATUSES = ["INACTIVE", "ABANDONED", "PROPOSED_NEVER_REALIZED"];
@@ -54,9 +55,13 @@ function App() {
   const [upstreamResult, setUpstreamResult] = useState(null);
   // 2D / 3D 视角：默认 3D（splash 退出后 pitch=45°），右上 panel 切换
   const [is3D, setIs3D] = useState(true);
-  // Viz 强度图层开关（独立于 2D/3D 相机）：sidebar 上的两个 toggle 控制
+  // Viz 强度图层开关（独立于 2D/3D 相机）：sidebar 上的 toggle 控制
   const [vizColliery, setVizColliery] = useState(true);
   const [vizAmd, setVizAmd] = useState(true);
+  const [vizPh, setVizPh] = useState(true);
+  const [vizMetal, setVizMetal] = useState(true);
+  // 水质摘要：pH + Iron 均值，按站点
+  const [wqSummary, setWqSummary] = useState(null);
 
   // 多源粒子模拟：anchor = analysisFocus.id (kind=pollution_source)，
   // extraSourceIds = 用户在 SimulateBlock 里勾选的额外 AMD 源 id。
@@ -81,8 +86,9 @@ function App() {
       getStations(),
       getHarms(),
       getPollutionSources(),
+      getWqSummary(),
     ])
-      .then(([collieries, stations, harms, sources]) => {
+      .then(([collieries, stations, harms, sources, wqData]) => {
         if (cancelled) return;
         setSearchIndex({
           collieries: collieries || [],
@@ -95,6 +101,7 @@ function App() {
         });
         setAllHarms(harms || []);
         setAllSources(sources || []);
+        setWqSummary(wqData || []);
       })
       .catch(() => {});
     return () => {
@@ -373,6 +380,9 @@ function App() {
         scoredAmdSources={scoredAmdSources}
         vizColliery={vizColliery}
         vizAmd={vizAmd}
+        vizPh={vizPh}
+        vizMetal={vizMetal}
+        wqSummary={wqSummary}
         simulationSourceIds={simulationSourceIds}
         extraSourceIds={extraSourceIds}
         addMode={addMode}
@@ -413,8 +423,12 @@ function App() {
             topHarms={topHarms}
             vizColliery={vizColliery}
             vizAmd={vizAmd}
+            vizPh={vizPh}
+            vizMetal={vizMetal}
             onToggleVizColliery={() => setVizColliery((v) => !v)}
             onToggleVizAmd={() => setVizAmd((v) => !v)}
+            onToggleVizPh={() => setVizPh((v) => !v)}
+            onToggleVizMetal={() => setVizMetal((v) => !v)}
             simulationSourceIds={simulationSourceIds}
             extraSourceIds={extraSourceIds}
             sourceById={sourceById}

@@ -62,3 +62,26 @@ def list_characteristics_for_station(station_id: str) -> list[dict]:
         [{"name": k, "count": v} for k, v in counts.items()],
         key=lambda x: -x["count"],
     )
+
+
+def get_wq_summary() -> list[dict]:
+    """每个站点的 pH 和 Iron 均值，仅包含至少有一种指标的站点。
+    Iron 只统计 fraction="Dissolved"，与 StationPanel 的时序图取数保持一致，
+    避免出现"有圆圈但图里没数据"的情况。
+    """
+    idx = _ensure_loaded()
+    result = []
+    for station_id, rows in idx.items():
+        ph_vals = [r["value"] for r in rows if r.get("characteristic") == "pH" and r.get("value") is not None]
+        iron_vals = [r["value"] for r in rows if r.get("characteristic") == "Iron" and r.get("value") is not None and (r.get("fraction") or "") == "Dissolved"]
+        if not ph_vals and not iron_vals:
+            continue
+        entry: dict = {"station_id": station_id}
+        if ph_vals:
+            entry["avg_ph"] = round(sum(ph_vals) / len(ph_vals), 3)
+            entry["count_ph"] = len(ph_vals)
+        if iron_vals:
+            entry["avg_iron"] = round(sum(iron_vals) / len(iron_vals), 3)
+            entry["count_iron"] = len(iron_vals)
+        result.append(entry)
+    return result

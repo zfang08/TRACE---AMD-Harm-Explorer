@@ -56,6 +56,11 @@ const HOVER_LAYER_ID = "hover-glow-layer";
 // 上游溯源高亮
 const UPSTREAM_SOURCE_ID = "upstream-trace-source";
 const UPSTREAM_LAYER_ID  = "upstream-trace-layer";
+// 水质圈层：pH（红→蓝）和金属含量 Iron（白→深红）
+const WQ_PH_SOURCE_ID    = "wq-ph-source";
+const WQ_PH_LAYER_ID     = "wq-ph-layer";
+const WQ_METAL_SOURCE_ID = "wq-metal-source";
+const WQ_METAL_LAYER_ID  = "wq-metal-layer";
 
 // 3D 柱：半径 200m（远视图也看得见），高度 = score × 80
 const EXTRUDE_RADIUS_M = 200;
@@ -396,6 +401,9 @@ function MapView({
   scoredAmdSources,
   vizColliery,
   vizAmd,
+  vizPh,
+  vizMetal,
+  wqSummary,
   simulationSourceIds,
   extraSourceIds,
   addMode,
@@ -908,6 +916,88 @@ function MapView({
               paint: { "icon-opacity": 0.85 },
             });
           }
+          // 水质热力图：pH（深青绿，酸度越高越深）和 Iron（深靛蓝，浓度越高越深）
+          // 以站点坐标为输入点，Mapbox heatmap 自动在稀疏点间平滑插值
+          if (!map.getSource(WQ_PH_SOURCE_ID)) {
+            map.addSource(WQ_PH_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer(
+              {
+                id: WQ_PH_LAYER_ID,
+                type: "heatmap",
+                source: WQ_PH_SOURCE_ID,
+                paint: {
+                  // 酸度权重：pH 2 → 5.5，pH 7.5 → 0，超出范围 clamp 0
+                  "heatmap-weight": [
+                    "max", 0, ["-", 7.5, ["get", "avg_ph"]],
+                  ],
+                  "heatmap-intensity": [
+                    "interpolate", ["linear"], ["zoom"],
+                    7, 0.5, 10, 1.2, 13, 2.5,
+                  ],
+                  "heatmap-radius": [
+                    "interpolate", ["linear"], ["zoom"],
+                    7, 25, 10, 45, 13, 72,
+                  ],
+                  // 深青绿（酸性聚集区）→ 浅青绿（稀疏/中性）
+                  "heatmap-color": [
+                    "interpolate", ["linear"], ["heatmap-density"],
+                    0,    "rgba(0,0,0,0)",
+                    0.15, "rgba(153,246,228,0.30)",
+                    0.4,  "rgba(45,212,191,0.62)",
+                    0.65, "rgba(13,148,136,0.78)",
+                    0.85, "rgba(15,118,110,0.88)",
+                    1.0,  "rgba(19,78,74,0.94)",
+                  ],
+                  "heatmap-opacity": 0.82,
+                },
+              },
+              STATION_LAYER_ID,
+            );
+          }
+          if (!map.getSource(WQ_METAL_SOURCE_ID)) {
+            map.addSource(WQ_METAL_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer(
+              {
+                id: WQ_METAL_LAYER_ID,
+                type: "heatmap",
+                source: WQ_METAL_SOURCE_ID,
+                paint: {
+                  // Iron 浓度近似 log 缩放权重
+                  "heatmap-weight": [
+                    "interpolate", ["linear"], ["get", "avg_iron"],
+                    0, 0, 0.5, 0.15, 2, 0.35, 10, 0.6, 50, 0.85, 200, 1.2, 600, 2.0,
+                  ],
+                  "heatmap-intensity": [
+                    "interpolate", ["linear"], ["zoom"],
+                    7, 0.5, 10, 1.2, 13, 2.5,
+                  ],
+                  "heatmap-radius": [
+                    "interpolate", ["linear"], ["zoom"],
+                    7, 25, 10, 45, 13, 72,
+                  ],
+                  // 深灰粉（高铁浓度）→ 浅灰粉（低浓度/无数据）
+                  "heatmap-color": [
+                    "interpolate", ["linear"], ["heatmap-density"],
+                    0,    "rgba(0,0,0,0)",
+                    0.15, "rgba(234,207,211,0.30)",
+                    0.4,  "rgba(192,144,152,0.62)",
+                    0.65, "rgba(143,90,98,0.78)",
+                    0.85, "rgba(98,51,64,0.88)",
+                    1.0,  "rgba(62,29,37,0.94)",
+                  ],
+                  "heatmap-opacity": 0.82,
+                },
+              },
+              STATION_LAYER_ID,
+            );
+          }
+
           // pollution sources — symbol 水滴图标
           if (!map.getSource(SRC_SOURCE_ID)) {
             map.addSource(SRC_SOURCE_ID, {
@@ -1311,13 +1401,34 @@ function MapView({
     setVis(COLL_EXTRUDE_LAYER_ID, false);
     setVis(COLL_HEATMAP_LAYER_ID, !!vizColliery);
     setVis(AMD_HEATMAP_LAYER_ID, !!vizAmd);
+    setVis(WQ_PH_LAYER_ID, !!vizPh);
+    setVis(WQ_METAL_LAYER_ID, !!vizMetal);
     setVis(STATION_LAYER_ID, visibleLayers.stations);
     setVis(SRC_LAYER_ID, visibleLayers.sources);
     // halo 跟 source 图层联动：用户隐藏 AMD 时光环也应该一起隐
     setVis(SIM_HALO_LAYER_ID, visibleLayers.sources);
     setVis(STREAM_LAYER_ID, visibleLayers.streams);
     setVis(ACTIVE_PATH_LAYER_ID, visibleLayers.streams);
-  }, [visibleLayers, layersReady, vizColliery, vizAmd]);
+  }, [visibleLayers, layersReady, vizColliery, vizAmd, vizPh, vizMetal]);
+
+  // ============= 3a-1. wqSummary → pH / Metal 热力图数据 =============
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady || !wqSummary) return;
+    const phFeatures = [];
+    const metalFeatures = [];
+    for (const s of wqSummary) {
+      const coords = [s.lon, s.lat];
+      if (s.avg_ph != null) {
+        phFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: { avg_ph: s.avg_ph } });
+      }
+      if (s.avg_iron != null) {
+        metalFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: coords }, properties: { avg_iron: s.avg_iron } });
+      }
+    }
+    map.getSource(WQ_PH_SOURCE_ID)?.setData({ type: "FeatureCollection", features: phFeatures });
+    map.getSource(WQ_METAL_SOURCE_ID)?.setData({ type: "FeatureCollection", features: metalFeatures });
+  }, [wqSummary, layersReady]);
 
   // ============= 3a-2. sub-layer status / severity filters =============
   useEffect(() => {

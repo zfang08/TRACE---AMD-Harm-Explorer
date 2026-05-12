@@ -28,16 +28,16 @@ function VizToggle({ on, label, color, hint, onClick }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
+        gap: 7,
         width: "100%",
-        padding: "7px 11px",
-        marginBottom: 5,
+        padding: "5px 9px",
+        marginBottom: 3,
         background: on ? "var(--ink)" : "var(--surface-strong)",
         color: on ? "var(--bg)" : "var(--ink)",
         border: `1px solid ${on ? "var(--ink)" : "var(--hairline)"}`,
         borderRadius: 999,
         cursor: "pointer",
-        fontSize: 10.5,
+        fontSize: 10,
         fontWeight: 500,
         letterSpacing: "-0.005em",
         transition:
@@ -92,8 +92,12 @@ function Sidebar({
   topHarms,
   vizColliery,
   vizAmd,
+  vizPh,
+  vizMetal,
   onToggleVizColliery,
   onToggleVizAmd,
+  onToggleVizPh,
+  onToggleVizMetal,
   simulationSourceIds,
   sourceById,
   addMode,
@@ -298,14 +302,14 @@ function Sidebar({
       <div
         style={{
           color: "var(--ink-2)",
-          fontSize: 10.5,
-          lineHeight: 1.6,
-          padding: "12px 12px 16px",
+          fontSize: 10,
+          lineHeight: 1.5,
+          padding: "8px 12px 12px",
         }}
       >
         <h2
           style={{
-            margin: "0 0 8px",
+            margin: "0 0 12px",
             color: "var(--ink)",
             fontSize: 16,
             lineHeight: 1.15,
@@ -317,10 +321,9 @@ function Sidebar({
           <br />
           Anthracite AMD
         </h2>
-
         <span
           className="pill-badge"
-          style={{ fontSize: 9, padding: "3px 9px", marginBottom: 14 }}
+          style={{ fontSize: 8, padding: "2px 7px", marginBottom: 10, display: "inline-flex" }}
         >
           <span
             style={{
@@ -334,18 +337,6 @@ function Sidebar({
           ATLAS · v0.1
         </span>
 
-        <p
-          style={{
-            color: "var(--ink-3)",
-            fontSize: 10.5,
-            marginTop: 8,
-            marginBottom: 16,
-            letterSpacing: "-0.005em",
-            lineHeight: 1.55,
-          }}
-        >
-          Pick a top-ranked entity below, or click any map marker to drill in.
-        </p>
 
         <div
           className="font-mono"
@@ -355,7 +346,7 @@ function Sidebar({
             color: "var(--ink-3)",
             letterSpacing: "0.16em",
             textTransform: "uppercase",
-            marginBottom: 10,
+            marginBottom: 6,
             display: "flex",
             alignItems: "center",
             gap: 8,
@@ -380,36 +371,37 @@ function Sidebar({
           hint={vizAmd ? "heatmap" : "off"}
           onClick={onToggleVizAmd}
         />
+        <VizToggle
+          on={!!vizPh}
+          label="Water pH"
+          color="#0d9488"
+          hint={vizPh ? "heatmap" : "off"}
+          onClick={onToggleVizPh}
+        />
+        <VizToggle
+          on={!!vizMetal}
+          label="Iron (Fe) load"
+          color="#8f5a62"
+          hint={vizMetal ? "heatmap" : "off"}
+          onClick={onToggleVizMetal}
+        />
 
         <TopKList
-          title="Top 8 collieries"
-          subtitle="Severity-weighted score across linked harms"
+          title="Top 5 collieries"
+          subtitle="Severity-weighted score"
           items={topCollieries}
           kind="colliery"
           onPick={(id) => onFocus?.("colliery", id)}
         />
 
         <TopKList
-          title="Top 8 AMD harms"
+          title="Top 5 AMD harms"
           subtitle="Severity rank, flow tiebreak"
           items={topHarms}
           kind="harm"
           onPick={(harmId) => onHarmSelect?.(harmId)}
         />
 
-        <p
-          className="font-mono"
-          style={{
-            color: "var(--ink-4)",
-            fontSize: 9,
-            marginTop: 20,
-            letterSpacing: "0.14em",
-            lineHeight: 1.55,
-            textTransform: "uppercase",
-          }}
-        >
-          ↗ Legend &amp; view mode — top-right
-        </p>
       </div>
     );
   }
@@ -446,7 +438,7 @@ function Sidebar({
           borderBottom: visiblyCollapsed
             ? "1px solid transparent"
             : "1px solid var(--hairline-soft)",
-          padding: visiblyCollapsed ? "5px 13px" : "10px 14px",
+          padding: visiblyCollapsed ? "5px 13px" : "8px 12px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
@@ -523,7 +515,7 @@ function Sidebar({
         {/* search + (optional) exit-analysis pill */}
         <div
           style={{
-            padding: "10px 12px 12px",
+            padding: "8px 12px 10px",
             borderBottom: "1px solid var(--hairline-soft)",
             position: "relative",
             flex: "none",
@@ -537,11 +529,11 @@ function Sidebar({
             style={{
               width: "100%",
               boxSizing: "border-box",
-              padding: "7px 14px",
+              padding: "5px 12px",
               borderRadius: 999,
               border: "1px solid var(--hairline)",
               background: "var(--surface-input)",
-              fontSize: 11,
+              fontSize: 10.5,
               color: "var(--ink)",
               outline: "none",
               fontFamily: "inherit",
