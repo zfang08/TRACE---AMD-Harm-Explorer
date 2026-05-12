@@ -159,7 +159,7 @@ function TopKList({ title, subtitle, items, kind, onPick }) {
     );
   }
   return (
-    <div style={{ marginTop: 8 }}>
+    <div style={{ marginTop: 5 }}>
       <SectionTitle title={title} subtitle={subtitle} />
       <div>
         {items.map((it, i) =>

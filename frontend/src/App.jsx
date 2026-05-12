@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import IntroOverlay from "./components/IntroOverlay";
+import { TOUR_STEPS } from "./components/GuidedTour";
 import LayerControlPanel from "./components/LayerControlPanel";
 import MapView from "./components/MapView";
 import Sidebar from "./components/Sidebar";
@@ -63,6 +64,10 @@ function App() {
   const [vizMetal, setVizMetal] = useState(true);
   // 水质摘要：pH + Iron 均值，按站点
   const [wqSummary, setWqSummary] = useState(null);
+  // 导览模式：null = 未激活；0-N = 当前步骤
+  const [tourStep, setTourStep] = useState(null);
+  // 导览相机：每步强制 flyTo 到指定坐标，覆盖 analysisFocus 的自动缩放
+  const [cameraTarget, setCameraTarget] = useState(null);
 
   // 多源粒子模拟：anchor = analysisFocus.id (kind=pollution_source)，
   // extraSourceIds = 用户在 SimulateBlock 里勾选的额外 AMD 源 id。
@@ -338,6 +343,83 @@ function App() {
   };
   const toggleAddMode = () => setAddMode((v) => !v);
 
+  // ── Guided tour handlers
+  // 直接调用 state setters（均为 stable ref）避免 stale closure 问题
+  const applyTourStep = useCallback((index) => {
+    const step = TOUR_STEPS[index];
+    if (!step) return;
+    setCameraTarget({ ...step.camera, _seq: index });
+    const action = step.action;
+    if (!action) {
+      setAnalysisFocus(null);
+      setSelectedHarmId(null);
+      setRelatedIds(EMPTY_RELATED);
+      setSimulating(false);
+      setExtraSourceIds([]);
+      setAddMode(false);
+    } else if (action.type === "focus") {
+      setAnalysisFocus({ kind: action.kind, id: action.id });
+      setSelectedHarmId(null);
+      setRelatedIds(EMPTY_RELATED);
+      setSimulating(false);
+      setExtraSourceIds([]);
+      setAddMode(false);
+    } else if (action.type === "simulate") {
+      setSimulating(true); // 保持上一步的 pollution_source focus
+    } else if (action.type === "harm") {
+      const sourceId = (action.id || "").replace(/^harm-/, "");
+      if (sourceId) setAnalysisFocus({ kind: "pollution_source", id: sourceId });
+      setSelectedHarmId(action.id);
+      setRelatedIds(EMPTY_RELATED);
+      setSimulating(false);
+      setExtraSourceIds([]);
+      setAddMode(false);
+    }
+  }, []);
+
+  const startTour = useCallback(() => {
+    setTourStep(0);
+    setSidebarCollapsed(false);
+    setLayerPanelCollapsed(true);
+    applyTourStep(0);
+  }, [applyTourStep]);
+
+  const exitTour = useCallback(() => {
+    setTourStep(null);
+    setCameraTarget(null);
+    setAnalysisFocus(null);
+    setSelectedHarmId(null);
+    setRelatedIds(EMPTY_RELATED);
+    setSimulating(false);
+    setExtraSourceIds([]);
+    setAddMode(false);
+  }, []);
+
+  const tourNext = useCallback(() => {
+    setTourStep((cur) => {
+      const next = (cur ?? 0) + 1;
+      if (next >= TOUR_STEPS.length) {
+        setCameraTarget(null);
+        setAnalysisFocus(null);
+        setSelectedHarmId(null);
+        setRelatedIds(EMPTY_RELATED);
+        setSimulating(false);
+        return null;
+      }
+      applyTourStep(next);
+      return next;
+    });
+  }, [applyTourStep]);
+
+  const tourBack = useCallback(() => {
+    setTourStep((cur) => {
+      const prev = (cur ?? 1) - 1;
+      if (prev < 0) return cur;
+      applyTourStep(prev);
+      return prev;
+    });
+  }, [applyTourStep]);
+
   const collieryStatusCounts = useMemo(() => ({
     active:   searchIndex.collieries.filter((c) => c.status === "ACTIVE").length,
     inactive: searchIndex.collieries.filter((c) => INACTIVE_STATUSES.includes(c.status)).length,
@@ -391,6 +473,7 @@ function App() {
         upstreamKm={upstreamKm}
         onUpstreamResult={setUpstreamResult}
         onIdleOrbitStart={() => { setSidebarCollapsed(true); setLayerPanelCollapsed(true); }}
+        cameraTarget={cameraTarget}
       />
 
       {introVisible ? (
@@ -443,6 +526,11 @@ function App() {
             upstreamKm={upstreamKm}
             onUpstreamKmChange={setUpstreamKm}
             upstreamResult={upstreamResult}
+            tourStep={tourStep}
+            onStartTour={startTour}
+            onTourNext={tourNext}
+            onTourBack={tourBack}
+            onExitTour={exitTour}
           />
         </>
       ) : null}

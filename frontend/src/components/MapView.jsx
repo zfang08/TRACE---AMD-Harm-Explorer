@@ -411,6 +411,7 @@ function MapView({
   upstreamKm,
   onUpstreamResult,
   onIdleOrbitStart,
+  cameraTarget,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -1847,6 +1848,21 @@ function MapView({
       easing: (t) => 1 - Math.pow(1 - t, 3),
     });
   }, [analysisFocus, layersReady, orbit]);
+
+  // ============= 4c. 导览模式：cameraTarget 变化时飞向指定位置 =============
+  // 比 4b 的 analysisFocus auto-zoom 晚定义，所以同帧内 flyTo 最后执行，导览相机优先。
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady || !cameraTarget) return;
+    map.flyTo({
+      center: cameraTarget.center,
+      zoom: cameraTarget.zoom ?? 12,
+      pitch: cameraTarget.pitch ?? 45,
+      bearing: cameraTarget.bearing ?? 0,
+      duration: cameraTarget.duration ?? 1800,
+      easing: (t) => 1 - Math.pow(1 - t, 3),
+    });
+  }, [cameraTarget, layersReady]);
 
   // ============= 5. orbit：splash 页时倾斜 + 持续旋转 =============
   // 等 layersReady（数据图层注册完）再开始旋转，避免影响初次渲染。

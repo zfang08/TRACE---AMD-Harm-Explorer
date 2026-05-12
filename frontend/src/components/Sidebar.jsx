@@ -5,6 +5,7 @@ import {
   getStationById,
 } from "../services/api";
 import CollieryPanel from "./CollieryPanel";
+import GuidedTour from "./GuidedTour";
 import HarmPanel from "./HarmPanel";
 import PollutionSourcePanel from "./PollutionSourcePanel";
 import SegmentPanel from "./SegmentPanel";
@@ -107,6 +108,11 @@ function Sidebar({
   upstreamKm,
   onUpstreamKmChange,
   upstreamResult,
+  tourStep,
+  onStartTour,
+  onTourNext,
+  onTourBack,
+  onExitTour,
 }) {
   // undefined = fetch in progress, null = fetch done but not found, object = found
   const [colliery, setColliery] = useState(undefined);
@@ -245,7 +251,16 @@ function Sidebar({
     maxSimSources,
   };
   let mainPanel = null;
-  if (selectedHarmId) {
+  if (tourStep != null) {
+    mainPanel = (
+      <GuidedTour
+        stepIndex={tourStep}
+        onNext={onTourNext}
+        onBack={onTourBack}
+        onExit={onExitTour}
+      />
+    );
+  } else if (selectedHarmId) {
     if (harm === undefined) {
       mainPanel = <Loading />;
     } else if (harm) {
@@ -304,14 +319,14 @@ function Sidebar({
           color: "var(--ink-2)",
           fontSize: 10,
           lineHeight: 1.5,
-          padding: "8px 12px 12px",
+          padding: "6px 12px 8px",
         }}
       >
         <h2
           style={{
-            margin: "0 0 12px",
+            margin: "0 0 5px",
             color: "var(--ink)",
-            fontSize: 16,
+            fontSize: 15,
             lineHeight: 1.15,
             letterSpacing: "-0.025em",
             fontWeight: 500,
@@ -323,7 +338,7 @@ function Sidebar({
         </h2>
         <span
           className="pill-badge"
-          style={{ fontSize: 8, padding: "2px 7px", marginBottom: 10, display: "inline-flex" }}
+          style={{ fontSize: 8, padding: "2px 7px", marginBottom: 8, display: "inline-flex" }}
         >
           <span
             style={{
@@ -337,6 +352,42 @@ function Sidebar({
           ATLAS · v0.1
         </span>
 
+        {/* Guided Tour entry */}
+        <button
+          type="button"
+          onClick={onStartTour}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            width: "100%",
+            marginBottom: 10,
+            padding: "5px 9px",
+            background: "var(--ink)",
+            color: "var(--bg)",
+            border: "1px solid var(--ink)",
+            borderRadius: 999,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: 10,
+            fontWeight: 500,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          <span style={{ fontSize: 8, lineHeight: 1 }}>▶</span>
+          <span style={{ flex: 1 }}>Guided Tour</span>
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 8.5,
+              color: "rgba(255,255,255,0.5)",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            6 steps
+          </span>
+        </button>
 
         <div
           className="font-mono"
@@ -388,7 +439,6 @@ function Sidebar({
 
         <TopKList
           title="Top 5 collieries"
-          subtitle="Severity-weighted score"
           items={topCollieries}
           kind="colliery"
           onPick={(id) => onFocus?.("colliery", id)}
@@ -396,7 +446,6 @@ function Sidebar({
 
         <TopKList
           title="Top 5 AMD harms"
-          subtitle="Severity rank, flow tiebreak"
           items={topHarms}
           kind="harm"
           onPick={(harmId) => onHarmSelect?.(harmId)}
