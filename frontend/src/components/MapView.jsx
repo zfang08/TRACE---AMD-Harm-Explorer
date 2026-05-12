@@ -1897,13 +1897,13 @@ function MapView({
               "line-color": "#6b6050",
               "line-width": [
                 "interpolate", ["linear"], ["zoom"],
-                8,  ["case", ["==", ["%", ["get", "ele"], 100], 0], 0.9, 0.4],
-                13, ["case", ["==", ["%", ["get", "ele"], 100], 0], 1.4, 0.7],
+                8,  ["case", ["==", ["%", ["get", "ele"], 100], 0], 0.45, 0.18],
+                13, ["case", ["==", ["%", ["get", "ele"], 100], 0], 0.75, 0.32],
               ],
               "line-opacity": [
                 "interpolate", ["linear"], ["zoom"],
-                8, 0.28,
-                13, 0.42,
+                8, 0.22,
+                13, 0.36,
               ],
             },
           },
