@@ -446,50 +446,49 @@ function Sidebar({
           borderBottom: visiblyCollapsed
             ? "1px solid transparent"
             : "1px solid var(--hairline-soft)",
-          padding: "12px 14px 12px",
+          padding: visiblyCollapsed ? "5px 13px" : "10px 14px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           color: "var(--ink)",
-          fontFamily: "inherit",
           flex: "none",
-          transition: `border-color ${ANIM_MS}ms ${ANIM_EASE}`,
+          transition: `border-color ${ANIM_MS}ms ${ANIM_EASE}, padding ${ANIM_MS}ms ${ANIM_EASE}`,
         }}
       >
         <span
           style={{
-            fontSize: 9,
+            display: "inline-block",
+            lineHeight: 1,
+            width: 8,
+            flex: "none",
             color: "var(--ink-3)",
             transform: visiblyCollapsed ? "rotate(0deg)" : "rotate(90deg)",
             transition: `transform ${ANIM_MS}ms ${ANIM_EASE}`,
-            display: "inline-block",
-            lineHeight: 1,
-            width: 9,
           }}
         >
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ display: "block" }}>
-            <path d="M2 1.5l3 2.5-3 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="7" height="7" viewBox="0 0 8 8" fill="none" style={{ display: "block" }}>
+            <path d="M2 1.5l3 2.5-3 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </span>
         <span
           style={{
-            fontSize: 13,
+            fontSize: visiblyCollapsed ? 9.5 : 12,
             fontWeight: 600,
-            letterSpacing: "-0.015em",
+            letterSpacing: visiblyCollapsed ? "0.04em" : "-0.015em",
             lineHeight: 1,
             color: "var(--ink)",
+            transition: `font-size ${ANIM_MS}ms ${ANIM_EASE}`,
           }}
         >
-          TRACE
-          <span style={{ color: "var(--accent)" }}>.</span>
+          TRACE<span style={{ color: "var(--accent)" }}>.</span>
         </span>
         <span
           className="font-mono"
           style={{
             marginLeft: "auto",
-            fontSize: 8.5,
+            fontSize: 8,
             fontWeight: 500,
             color: "var(--ink-3)",
             letterSpacing: "0.14em",
@@ -497,7 +496,7 @@ function Sidebar({
             opacity: visiblyCollapsed ? 0 : 1,
             transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
             whiteSpace: "nowrap",
-            padding: "2px 8px",
+            padding: "1px 7px",
             border: "1px solid var(--hairline)",
             borderRadius: 999,
             background: "var(--surface-quiet)",
