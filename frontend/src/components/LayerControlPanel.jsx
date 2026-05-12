@@ -354,7 +354,7 @@ function ViewModeRow({ is3D, onToggle3D }) {
               flex: 1,
               background: "transparent",
               border: "none",
-              padding: "5px 0",
+              padding: "3px 0",
               fontSize: 10,
               fontWeight: 600,
               letterSpacing: "0.18em",
