@@ -11,7 +11,7 @@ import React, { useEffect, useState } from "react";
  */
 
 const PANEL_WIDTH_EXPANDED = 220;
-const PANEL_WIDTH_COLLAPSED = 100;
+const PANEL_WIDTH_COLLAPSED = 80;
 // 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
 const ANIM_MS = 580;
 const ANIM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -421,14 +421,15 @@ function LayerControlPanel({
           width: "100%",
           background: "transparent",
           border: "none",
-          padding: visiblyCollapsed ? "5px 13px" : "10px 14px",
+          padding: visiblyCollapsed ? "5px 10px 5px 20px" : "10px 14px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
+          justifyContent: visiblyCollapsed ? "flex-end" : "flex-start",
           gap: 8,
           color: "var(--ink)",
-          transition: `padding ${ANIM_MS}ms ${ANIM_EASE}`,
+          transition: `padding ${ANIM_MS}ms ${ANIM_EASE}, justify-content 0ms`,
         }}
       >
         <span
@@ -469,9 +470,11 @@ function LayerControlPanel({
             letterSpacing: "0.14em",
             textTransform: "uppercase",
             opacity: visiblyCollapsed ? 0 : 1,
-            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+            maxWidth: visiblyCollapsed ? 0 : 120,
+            overflow: "hidden",
+            transition: `opacity ${ANIM_MS}ms ${ANIM_EASE}, max-width ${ANIM_MS}ms ${ANIM_EASE}`,
             whiteSpace: "nowrap",
-            padding: "1px 7px",
+            padding: visiblyCollapsed ? "1px 0" : "1px 7px",
             border: "1px solid var(--hairline)",
             borderRadius: 999,
             background: "var(--surface-quiet)",

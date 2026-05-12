@@ -15,7 +15,7 @@ import TopKList from "./TopKList";
 // Width 配额：宽屏（TV）显示，单位 px。展开宽度比之前 320 缩到 272；折叠态
 // 取一个固定宽度（不再用 width:auto），这样 CSS transition 才能丝滑收放。
 const SIDEBAR_WIDTH_EXPANDED = 282;
-const SIDEBAR_WIDTH_COLLAPSED = 96;
+const SIDEBAR_WIDTH_COLLAPSED = 76;
 // 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
 const ANIM_MS = 580;
 const ANIM_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
