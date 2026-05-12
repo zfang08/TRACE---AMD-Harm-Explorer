@@ -227,22 +227,10 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
       </div>
       <div
         style={{
-          fontSize: 10,
-          color: "var(--ink-3)",
-          marginTop: 6,
-          marginLeft: 34,
-          marginBottom: 9,
-          letterSpacing: "-0.005em",
-          lineHeight: 1.45,
-        }}
-      >
-        {meta.description}
-      </div>
-      <div
-        style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 6,
+          gap: 5,
+          marginTop: 7,
           marginLeft: 34,
           fontSize: 9.5,
           color: "var(--ink-2)",
