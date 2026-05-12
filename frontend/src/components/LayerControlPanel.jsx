@@ -275,19 +275,6 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
             >
               <Chip color={active ? c.color : "var(--ink-5)"} shape={meta.shape} />
               {c.label}
-              {subCounts?.[c.key] != null && (
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: 8.5,
-                    color: "var(--ink-4)",
-                    fontVariantNumeric: "tabular-nums",
-                    marginLeft: 2,
-                  }}
-                >
-                  {subCounts[c.key].toLocaleString()}
-                </span>
-              )}
             </button>
           ) : (
             <span
@@ -503,10 +490,6 @@ function LayerControlPanel({
         }}
         aria-hidden={visiblyCollapsed}
       >
-        <div
-          className="sidebar-scroll"
-          style={{ overflowY: "auto", maxHeight: "calc(100vh - 120px)" }}
-        >
         {onToggle3D ? <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} /> : null}
         <LayerRow
           layerKey="collieries"
@@ -538,7 +521,6 @@ function LayerControlPanel({
           count={counts?.streams}
           onChange={setLayer}
         />
-        </div>
       </div>
     </div>
   );
