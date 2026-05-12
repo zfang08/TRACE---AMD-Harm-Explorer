@@ -3,22 +3,18 @@ import { getHarmById } from "../services/api";
 import SimulateBlock from "./SimulateBlock";
 
 const SEVERITY_BG = {
-  extreme: "#7f1d1d",
-  high: "#b91c1c",
-  medium: "#dc2626",
+  extreme: "#7a1e10",
+  high: "#b9341e",
+  medium: "#b9341e",
   low: "#fda4af",
 };
 const SEVERITY_FG = {
   extreme: "#ffffff",
   high: "#ffffff",
   medium: "#ffffff",
-  low: "#7f1d1d",
+  low: "#7a1e10",
 };
 
-/**
- * Pollution-source detail panel. Each source maps 1:1 to a harm, so we display
- * source-level fields here and link out to the full HarmPanel for evidence.
- */
 function PollutionSourcePanel({
   pollutionSourceId,
   onHarmSelect,
@@ -31,33 +27,36 @@ function PollutionSourcePanel({
   onRemoveExtraSource,
   maxSimSources,
 }) {
-  const [harm, setHarm] = useState(null);
+  // undefined = fetch in progress, null = not found, object = found
+  const [harm, setHarm] = useState(undefined);
 
   useEffect(() => {
-    if (!pollutionSourceId) {
-      setHarm(null);
-      return;
-    }
+    if (!pollutionSourceId) { setHarm(undefined); return; }
+    setHarm(undefined);
     let cancelled = false;
     getHarmById(`harm-${pollutionSourceId}`)
-      .then((h) => !cancelled && setHarm(h))
+      .then((h) => !cancelled && setHarm(h ?? null))
       .catch(() => !cancelled && setHarm(null));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [pollutionSourceId]);
+
+  if (harm === undefined) {
+    return (
+      <div style={{ padding: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+          Loading
+        </span>
+        <span className="loading-dot" />
+        <span className="loading-dot" />
+        <span className="loading-dot" />
+      </div>
+    );
+  }
 
   if (!harm) {
     return (
-      <div
-        style={{
-          padding: 14,
-          color: "#64748b",
-          fontSize: 11.5,
-          fontStyle: "italic",
-        }}
-      >
-        Loading…
+      <div style={{ padding: "14px 16px", fontSize: 11, color: "var(--ink-4)", lineHeight: 1.55 }}>
+        No AMD discharge record registered for this source.
       </div>
     );
   }
@@ -67,22 +66,14 @@ function PollutionSourcePanel({
 
   return (
     <div style={{ padding: 14, fontSize: 11.5 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
         <h2
           style={{
             margin: 0,
             fontSize: 13.5,
             fontWeight: 500,
-            color: "#0f172a",
+            color: "var(--ink)",
             lineHeight: 1.4,
-            letterSpacing: "0.01em",
             flex: "1 1 auto",
             minWidth: 0,
           }}
@@ -92,10 +83,10 @@ function PollutionSourcePanel({
         <span
           style={{
             display: "inline-block",
-            background: SEVERITY_BG[sev] || "#94a3b8",
+            background: SEVERITY_BG[sev] || "var(--ink-4)",
             color: SEVERITY_FG[sev] || "#ffffff",
-            padding: "3px 9px",
-            borderRadius: 4,
+            padding: "2px 9px",
+            borderRadius: 999,
             fontSize: 8.5,
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -106,15 +97,7 @@ function PollutionSourcePanel({
           {sev}
         </span>
       </div>
-      <p
-        style={{
-          margin: "5px 0 0",
-          fontSize: 11,
-          fontStyle: "italic",
-          color: "#64748b",
-          lineHeight: 1.55,
-        }}
-      >
+      <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--ink-3)", lineHeight: 1.55 }}>
         {harm.name}
       </p>
 
@@ -122,49 +105,56 @@ function PollutionSourcePanel({
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "6px 12px",
+          gap: "8px 12px",
           fontSize: 11,
           marginTop: 14,
+          alignItems: "center",
         }}
       >
-        <strong style={{ color: "#475569" }}>PA DEP priority</strong>
-        <span style={{ color: "#0f172a" }}>{km.sf_priority || "—"}</span>
-        <strong style={{ color: "#475569" }}>Reported flow</strong>
-        <span style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>
+        <span className="font-mono" style={{ fontSize: 9, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>PA DEP priority</span>
+        <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink)" }}>{km.sf_priority || "—"}</span>
+
+        <span className="font-mono" style={{ fontSize: 9, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Reported flow</span>
+        <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
           {km.flow_gpm != null ? `${km.flow_gpm} gpm` : "—"}
         </span>
-        {harm.time_window?.start ? (
+
+        {harm.time_window?.start && (
           <>
-            <strong style={{ color: "#475569" }}>Sample window</strong>
-            <span style={{ color: "#0f172a" }}>
+            <span className="font-mono" style={{ fontSize: 9, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Sample window</span>
+            <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink)" }}>
               {harm.time_window.start} → {harm.time_window.end}
             </span>
           </>
-        ) : null}
+        )}
       </div>
 
       <div
         style={{
           marginTop: 14,
           padding: "10px 12px",
-          background: "rgba(241,245,249,0.7)",
-          borderRadius: 8,
+          background: "var(--bg-3)",
+          border: "1px solid var(--hairline)",
+          borderRadius: "var(--radius-md)",
           fontSize: 11,
-          lineHeight: 1.65,
-          color: "#0f172a",
+          lineHeight: 1.7,
+          color: "var(--ink-2)",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "4px 8px",
+          alignItems: "center",
         }}
       >
-        <div>
-          Downstream impact: <strong>{km.n_reaches ?? 0}</strong> reaches over{" "}
-          <strong>{(km.total_reach_length_km ?? 0).toFixed(1)} km</strong>
-        </div>
-        <div>
-          Linked collieries within 2 km:{" "}
-          <strong>{km.n_collieries ?? 0}</strong>
-        </div>
-        <div>
-          Supporting stations with data: <strong>{km.n_stations ?? 0}</strong>
-        </div>
+        <span>Downstream:</span>
+        <span className="pill-badge font-mono" style={{ fontSize: 10 }}>{km.n_reaches ?? 0} reaches</span>
+        <span>over</span>
+        <span className="pill-badge font-mono" style={{ fontSize: 10 }}>{(km.total_reach_length_km ?? 0).toFixed(1)} km</span>
+        <span style={{ color: "var(--hairline-strong)", padding: "0 2px" }}>·</span>
+        <span className="pill-badge font-mono" style={{ fontSize: 10 }}>{km.n_collieries ?? 0} collieries</span>
+        <span style={{ fontSize: 10, color: "var(--ink-4)" }}>within 2 km</span>
+        <span style={{ color: "var(--hairline-strong)", padding: "0 2px" }}>·</span>
+        <span className="pill-badge font-mono" style={{ fontSize: 10 }}>{km.n_stations ?? 0} stations</span>
+        <span style={{ fontSize: 10, color: "var(--ink-4)" }}>with data</span>
       </div>
 
       {onToggleSimulate ? (
@@ -183,22 +173,22 @@ function PollutionSourcePanel({
       <button
         type="button"
         onClick={() => onHarmSelect(harm.id)}
+        className="pill-btn"
         style={{
           marginTop: 14,
           width: "100%",
           padding: "9px 10px",
-          background: "#1e293b",
-          color: "#f8fafc",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
+          justifyContent: "center",
           fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          fontFamily: "inherit",
+          fontWeight: 600,
+          letterSpacing: "0.02em",
         }}
+        data-active="true"
       >
-        See full harm evidence →
+        See full harm evidence
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ display: "inline-block", verticalAlign: "middle", marginLeft: 5 }}>
+          <path d="M2.5 6h7M7 2.5l3.5 3.5L7 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
     </div>
   );

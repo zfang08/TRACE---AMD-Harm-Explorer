@@ -15,11 +15,17 @@ function haversineMeters(a, b) {
 
 export function buildPolylineFromPath(pathIds, segmentsById) {
   const coords = [];
+  const segCoordStartIdx = []; // 每段在 coords[] 中的起始索引
+
   for (const id of pathIds) {
     const seg = segmentsById[id];
     const segCoords = seg?.coordinates || [];
-    if (segCoords.length === 0) continue;
+    if (segCoords.length === 0) {
+      segCoordStartIdx.push(Math.max(0, coords.length - 1));
+      continue;
+    }
     if (coords.length === 0) {
+      segCoordStartIdx.push(0);
       coords.push(...segCoords);
     } else {
       // 避免段与段之间重复首点
@@ -30,7 +36,13 @@ export function buildPolylineFromPath(pathIds, segmentsById) {
         Array.isArray(first) &&
         last[0] === first[0] &&
         last[1] === first[1];
-      coords.push(...(same ? segCoords.slice(1) : segCoords));
+      if (same) {
+        segCoordStartIdx.push(coords.length - 1);
+        coords.push(...segCoords.slice(1));
+      } else {
+        segCoordStartIdx.push(coords.length);
+        coords.push(...segCoords);
+      }
     }
   }
 
@@ -44,7 +56,12 @@ export function buildPolylineFromPath(pathIds, segmentsById) {
     cum.push(total);
   }
 
-  return { coords, segLens, cum, totalMeters: total };
+  // 每段的起始累积距离（供 buildHalfWidthFn 插值用）
+  const segmentStartDists = segCoordStartIdx.map(
+    (idx) => cum[Math.min(idx, cum.length - 1)] ?? 0,
+  );
+
+  return { coords, segLens, cum, totalMeters: total, segmentStartDists };
 }
 
 export function pointAtDistance(polyline, distanceMeters) {

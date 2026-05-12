@@ -13,7 +13,7 @@ function Sparkline({
   samples,
   width = 240,
   height = 80,
-  color = "#2563eb",
+  color = "#2f4858",
   unitLabel = "",
 }) {
   const [hoverIdx, setHoverIdx] = useState(null);
@@ -49,11 +49,11 @@ function Sparkline({
           width,
           height,
           fontSize: 12,
-          color: "#94a3b8",
+          color: "var(--ink-4)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          border: "1px dashed rgba(148,163,184,0.4)",
+          border: "1px dashed var(--hairline-strong)",
           borderRadius: 6,
         }}
       >
@@ -99,7 +99,7 @@ function Sparkline({
           x2={width - padX}
           y1={padY}
           y2={padY}
-          stroke="rgba(148,163,184,0.3)"
+          stroke="rgba(0,0,0,0.08)"
           strokeDasharray="2 3"
         />
         <line
@@ -107,7 +107,7 @@ function Sparkline({
           x2={width - padX}
           y1={height - padY}
           y2={height - padY}
-          stroke="rgba(148,163,184,0.3)"
+          stroke="rgba(0,0,0,0.08)"
           strokeDasharray="2 3"
         />
         {/* Polyline */}
@@ -149,7 +149,7 @@ function Sparkline({
           top: 0,
           right: 2,
           fontSize: 10,
-          color: "#94a3b8",
+          color: "var(--ink-4)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -161,7 +161,7 @@ function Sparkline({
           bottom: 0,
           right: 2,
           fontSize: 10,
-          color: "#94a3b8",
+          color: "var(--ink-4)",
           fontVariantNumeric: "tabular-nums",
         }}
       >
@@ -176,7 +176,7 @@ function Sparkline({
           display: "flex",
           justifyContent: "space-between",
           fontSize: 10,
-          color: "#94a3b8",
+          color: "var(--ink-4)",
         }}
       >
         <span>{dateMin}</span>
@@ -190,11 +190,11 @@ function Sparkline({
             top: -4,
             left: 4,
             fontSize: 11,
-            color: "#0f172a",
-            background: "rgba(255,255,255,0.85)",
+            color: "var(--ink)",
+            background: "var(--surface-strong)",
             padding: "1px 5px",
             borderRadius: 4,
-            border: "1px solid rgba(15,23,42,0.1)",
+            border: "1px solid var(--hairline)",
             pointerEvents: "none",
           }}
         >

@@ -5,19 +5,18 @@ import Sparkline from "./Sparkline";
 const PREFERRED_CHAR = ["Iron", "pH", "Manganese", "Acidity, (H+)"];
 
 const SEVERITY_BG = {
-  extreme: "#7f1d1d",
-  high: "#b91c1c",
-  medium: "#dc2626",
+  extreme: "#7a1e10",
+  high: "#b9341e",
+  medium: "#b9341e",
   low: "#fda4af",
 };
 const SEVERITY_FG = {
   extreme: "#ffffff",
   high: "#ffffff",
   medium: "#ffffff",
-  low: "#7f1d1d",
+  low: "#7a1e10",
 };
 
-// Match build_harms.py unit normalization: pull metals to mg/L, drop solid units.
 function normalizeMetalToMgL(value, unit, fraction) {
   if (value == null) return null;
   if (fraction !== "Dissolved" && fraction !== "") return null;
@@ -30,27 +29,29 @@ function normalizeMetalToMgL(value, unit, fraction) {
 }
 
 function getChartUnit(characteristic) {
-  if (
-    characteristic === "Iron" ||
-    characteristic === "Manganese" ||
-    characteristic === "Aluminum"
-  )
-    return "mg/L";
-  if (
-    characteristic.startsWith("Acidity") ||
-    characteristic.startsWith("Alkalinity")
-  )
-    return "mg/L CaCO₃";
+  if (["Iron", "Manganese", "Aluminum"].includes(characteristic)) return "mg/L";
+  if (characteristic.startsWith("Acidity") || characteristic.startsWith("Alkalinity")) return "mg/L CaCO₃";
   if (characteristic === "pH") return "";
   return "";
+}
+
+function MetaRow({ label, value }) {
+  return (
+    <>
+      <span className="font-mono" style={{ fontSize: 9, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500, alignSelf: "center" }}>
+        {label}
+      </span>
+      <span className="font-mono" style={{ fontSize: 10.5, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </span>
+    </>
+  );
 }
 
 function StationPanel({ station, onHarmSelect }) {
   const linkedHarms = station?.linked_harms || [];
   const availableChars = station?.available_characteristics || [];
 
-  // Default: first preferred characteristic the station actually has, else
-  // first available.
   const defaultChar = useMemo(() => {
     const names = new Set(availableChars.map((c) => c.name));
     for (const p of PREFERRED_CHAR) if (names.has(p)) return p;
@@ -62,16 +63,10 @@ function StationPanel({ station, onHarmSelect }) {
 
   const [samples, setSamples] = useState([]);
   useEffect(() => {
-    if (!station?.id || !characteristic) {
-      setSamples([]);
-      return;
-    }
+    if (!station?.id || !characteristic) { setSamples([]); return; }
     let cancelled = false;
-    // For metals, force Dissolved fraction if it exists
     const opts = { characteristic };
-    if (["Iron", "Manganese", "Aluminum"].includes(characteristic)) {
-      opts.fraction = "Dissolved";
-    }
+    if (["Iron", "Manganese", "Aluminum"].includes(characteristic)) opts.fraction = "Dissolved";
     getStationSamples(station.id, opts)
       .then((rows) => {
         if (cancelled) return;
@@ -87,33 +82,15 @@ function StationPanel({ station, onHarmSelect }) {
         setSamples(cleaned);
       })
       .catch(() => !cancelled && setSamples([]));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [station?.id, characteristic]);
 
   return (
     <div style={{ padding: 14, fontSize: 11.5 }}>
-      <h2
-        style={{
-          margin: 0,
-          fontSize: 13.5,
-          fontWeight: 500,
-          color: "#0f172a",
-          lineHeight: 1.4,
-          letterSpacing: "0.01em",
-        }}
-      >
+      <h2 style={{ margin: 0, fontSize: 13.5, fontWeight: 500, color: "var(--ink)", lineHeight: 1.4 }}>
         {station?.name || "—"}
       </h2>
-      <p
-        style={{
-          margin: "5px 0 0",
-          fontSize: 10,
-          fontStyle: "italic",
-          color: "#94a3b8",
-        }}
-      >
+      <p className="font-mono" style={{ margin: "5px 0 0", fontSize: 9.5, color: "var(--ink-4)", letterSpacing: "0.04em" }}>
         {station?.id}
       </p>
 
@@ -121,51 +98,35 @@ function StationPanel({ station, onHarmSelect }) {
         style={{
           display: "grid",
           gridTemplateColumns: "auto 1fr",
-          gap: "6px 12px",
+          gap: "8px 12px",
           fontSize: 11,
           marginTop: 14,
+          alignItems: "baseline",
         }}
       >
-        <strong style={{ color: "#475569" }}>Type</strong>
-        <span style={{ color: "#0f172a" }}>{station?.type || "—"}</span>
-        <strong style={{ color: "#475569" }}>Agency</strong>
-        <span style={{ color: "#0f172a" }}>{station?.agency || "—"}</span>
-        <strong style={{ color: "#475569" }}>HUC8</strong>
-        <span style={{ color: "#0f172a" }}>{station?.huc || "—"}</span>
-        {station?.drainage_area_sq_mi != null ? (
-          <>
-            <strong style={{ color: "#475569" }}>Drainage</strong>
-            <span style={{ color: "#0f172a" }}>
-              {station.drainage_area_sq_mi.toFixed(1)} sq mi
-            </span>
-          </>
-        ) : null}
-        {station?.altitude_ft != null ? (
-          <>
-            <strong style={{ color: "#475569" }}>Altitude</strong>
-            <span style={{ color: "#0f172a" }}>
-              {station.altitude_ft.toFixed(0)} ft
-            </span>
-          </>
-        ) : null}
-        {Array.isArray(station?.sources) ? (
-          <>
-            <strong style={{ color: "#475569" }}>Sources</strong>
-            <span style={{ color: "#0f172a" }}>
-              {station.sources.join(" + ")}
-            </span>
-          </>
-        ) : null}
+        <MetaRow label="Type" value={station?.type || "—"} />
+        <MetaRow label="Agency" value={station?.agency || "—"} />
+        <MetaRow label="HUC8" value={station?.huc || "—"} />
+        {station?.drainage_area_sq_mi != null && (
+          <MetaRow label="Drainage" value={`${station.drainage_area_sq_mi.toFixed(1)} sq mi`} />
+        )}
+        {station?.altitude_ft != null && (
+          <MetaRow label="Altitude" value={`${station.altitude_ft.toFixed(0)} ft`} />
+        )}
+        {Array.isArray(station?.sources) && (
+          <MetaRow label="Sources" value={station.sources.join(" + ")} />
+        )}
       </div>
 
       {availableChars.length > 0 ? (
         <div style={{ marginTop: 20 }}>
           <div
+            className="font-mono"
             style={{
-              fontSize: 9.5,
-              fontWeight: 700,
-              color: "#475569",
-              letterSpacing: "0.08em",
+              fontSize: 9,
+              fontWeight: 500,
+              color: "var(--ink-3)",
+              letterSpacing: "0.14em",
               textTransform: "uppercase",
               marginBottom: 10,
               display: "flex",
@@ -179,15 +140,16 @@ function StationPanel({ station, onHarmSelect }) {
               onChange={(e) => setCharacteristic(e.target.value)}
               style={{
                 fontSize: 10,
-                padding: "2px 6px",
-                borderRadius: 4,
-                border: "1px solid rgba(15,23,42,0.2)",
-                background: "rgba(255,255,255,0.7)",
-                fontFamily: "inherit",
+                padding: "2px 7px",
+                borderRadius: 999,
+                border: "1px solid var(--hairline-strong)",
+                background: "var(--surface-strong)",
+                fontFamily: "var(--font-mono)",
                 fontWeight: 500,
-                color: "#0f172a",
-                textTransform: "none",
+                color: "var(--ink)",
                 letterSpacing: "0",
+                textTransform: "none",
+                cursor: "pointer",
               }}
             >
               {availableChars.map((c) => (
@@ -196,6 +158,7 @@ function StationPanel({ station, onHarmSelect }) {
                 </option>
               ))}
             </select>
+            <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
           </div>
           <div style={{ marginBottom: 22 }}>
             <Sparkline
@@ -208,90 +171,85 @@ function StationPanel({ station, onHarmSelect }) {
         </div>
       ) : null}
 
-      <div
-        style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: "#475569",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          marginTop: 16,
-        }}
-      >
-        Linked AMD harms{" "}
-        <span style={{ color: "#cbd5e1", fontWeight: 500 }}>
-          ({linkedHarms.length})
-        </span>
-      </div>
-      {linkedHarms.length === 0 ? (
-        <p
+      <div style={{ marginTop: 20 }}>
+        <div
+          className="font-mono"
           style={{
-            color: "#94a3b8",
-            fontSize: 11,
-            fontStyle: "italic",
-            marginTop: 8,
-            lineHeight: 1.55,
+            fontSize: 9,
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          This station is not on any AMD harm’s downstream chain.
-        </p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0" }}>
-          {linkedHarms.map((h) => {
-            const sev = h.severity || "low";
-            return (
-              <li key={h.id} style={{ marginBottom: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => onHarmSelect(h.id)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    background: "transparent",
-                    border: "1px solid rgba(15,23,42,0.12)",
-                    borderRadius: 6,
-                    padding: "6px 9px",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    textAlign: "left",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <span
+          <span>Linked AMD harms</span>
+          <span className="pill-badge" style={{ fontSize: 8, padding: "1px 6px", lineHeight: 1.6 }}>
+            {linkedHarms.length}
+          </span>
+          <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
+        </div>
+
+        {linkedHarms.length === 0 ? (
+          <p style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 8, lineHeight: 1.55 }}>
+            This station is not on any AMD harm's downstream chain.
+          </p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0" }}>
+            {linkedHarms.map((h) => {
+              const sev = h.severity || "low";
+              return (
+                <li key={h.id} style={{ marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => onHarmSelect(h.id)}
                     style={{
-                      display: "inline-block",
-                      background: SEVERITY_BG[sev] || "#94a3b8",
-                      color: SEVERITY_FG[sev] || "#ffffff",
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      fontSize: 8.5,
-                      fontWeight: 700,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      flex: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      background: "var(--surface-quiet)",
+                      border: "1px solid var(--hairline)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "7px 10px",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      transition: "background 160ms var(--ease-out), border-color 160ms var(--ease-out)",
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg)"; e.currentTarget.style.borderColor = "var(--hairline-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface-quiet)"; e.currentTarget.style.borderColor = "var(--hairline)"; }}
                   >
-                    {sev}
-                  </span>
-                  <span
-                    style={{
-                      color: "#0f172a",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      minWidth: 0,
-                    }}
-                  >
-                    {h.name || h.id}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        background: SEVERITY_BG[sev] || "var(--ink-4)",
+                        color: SEVERITY_FG[sev] || "#ffffff",
+                        padding: "2px 7px",
+                        borderRadius: 999,
+                        fontSize: 8.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        flex: "none",
+                      }}
+                    >
+                      {sev}
+                    </span>
+                    <span style={{ color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                      {h.name || h.id}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

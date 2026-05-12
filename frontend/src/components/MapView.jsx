@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import StatusBar from "./StatusBar";
 import {
   getCollieries,
   getHarms,
@@ -13,6 +14,11 @@ import {
   buildPolylineFromPath,
   pointAndTangentAtDistance,
 } from "../sim/polyline";
+import {
+  buildSegmentWidthMap,
+  buildHalfWidthFn,
+  lateralSigmaScale,
+} from "../sim/hydraulicGeometry";
 
 // 粒子流：跟随 analysisFocus = pollution_source 时自动启动；其他状态停止
 const RUN_PARTICLE_SIM = true;
@@ -38,6 +44,14 @@ const AMD_HEATMAP_LAYER_ID = "amd-heatmap-layer";
 // 多源 sim：参与模拟的 AMD 在地图上画一圈白色光环以示"已加入"
 const SIM_HALO_SOURCE_ID = "sim-halo-source";
 const SIM_HALO_LAYER_ID = "sim-halo-layer";
+// 因果链动画：矿场→排放点虚线 + 沿路扫描脉冲
+const EVIDENCE_CHAIN_SOURCE_ID = "evidence-chain-source";
+const EVIDENCE_CHAIN_LAYER_ID = "evidence-chain-layer";
+const EVIDENCE_PULSE_SOURCE_ID = "evidence-pulse-source";
+const EVIDENCE_PULSE_LAYER_ID = "evidence-pulse-layer";
+// 图标 hover 光晕
+const HOVER_SOURCE_ID = "hover-glow-source";
+const HOVER_LAYER_ID = "hover-glow-layer";
 
 // 3D 柱：半径 200m（远视图也看得见），高度 = score × 80
 const EXTRUDE_RADIUS_M = 200;
@@ -87,13 +101,13 @@ function buildHeatmapFeatureCollection(scoredCollieries) {
 
 // 粒子起点颜色按 source.severity 取深红梯度，终点固定 cold slate
 const PARTICLE_HOT_COLOR = {
-  extreme: "#7f1d1d",
-  high: "#b91c1c",
-  medium: "#dc2626",
+  extreme: "#7a1e10",
+  high: "#b9341e",
+  medium: "#b9341e",
   low: "#fda4af",
-  DEFAULT: "#dc2626",
+  DEFAULT: "#b9341e",
 };
-const PARTICLE_COLD_COLOR = "#94a3b8";
+const PARTICLE_COLD_COLOR = "#a3a3a3";
 
 // Box-Muller：标准正态采样。粒子 random walk 用。
 function randn() {
@@ -144,7 +158,10 @@ const PARTICLE_PHYSICS = {
   D: 8000, // m²/s 扩散（u 翻倍后传输时间减半，D 也要 ×2 才能保持视觉宽度）
   k: 0.012, // 1/s 衰减——快了之后整体寿命短，k 也要适度上调让末端褪色
   jitterSigma: 25, // m 起点横向 jitter
+  lateralTimeScale: 35, // √(u_visual/u_real) = √1267 ≈ 35；Taylor Pe 守恒
 };
+
+const TRAIL_LEN = 4; // 粒子拖影：保留最近 4 帧坐标，渲染成渐隐 ghost 产生运动模糊感
 
 const PARTICLE_DEFAULTS = {
   // 多源模式下粒子总预算共享。单源时 ~1800 已经够"plume"感；多源时拉到 4500
@@ -163,17 +180,17 @@ const PARTICLE_DEFAULTS = {
 // "已修复"。Station 走 violet（紫罗兰），冷色但跟河网蓝、source 红都不撞。
 // Source 是红色梯度（唯一暖色），全场仅它独占 attention 重量。
 const COLLIERY_COLORS = {
-  ACTIVE: "#1e293b",                 // slate-800   深炭：还在挖（最重）
-  INACTIVE: "#94a3b8",               // slate-400   中灰：暂停
-  ABANDONED: "#475569",              // slate-600   暗灰：废弃（AMD 威胁）
+  ACTIVE: "#0a0a0a",                 // ink         深炭：还在挖（最重）
+  INACTIVE: "#a3a3a3",               // ink-4       中灰：暂停
+  ABANDONED: "#404040",              // ink-2       暗灰：废弃（AMD 威胁）
   RECLAMATION_COMPLETED: "#65a30d",  // lime-600    绿：唯一 accent，"已修复"
-  PROPOSED_NEVER_REALIZED: "#e2e8f0",// slate-200   极浅：从未动工
-  DEFAULT: "#9ca3af",                // gray-400
+  PROPOSED_NEVER_REALIZED: "#e2e8f0",// 极浅：从未动工
+  DEFAULT: "#a3a3a3",                // ink-4
 };
 
 const STATION_COLORS = {
-  DUAL: "#5b21b6",    // violet-700  深紫罗兰：双源（NWIS+WQP），最可信
-  SINGLE: "#a78bfa",  // violet-400  浅紫：单源
+  DUAL: "#2f4858",    // accent-steel  深蓝灰：双源（NWIS+WQP），最可信
+  SINGLE: "#94a8b6",  // accent-steel light  浅蓝灰：单源
 };
 
 // "icon-image" 用 match 表达式按 feature 属性挑预生成的图标
@@ -198,11 +215,11 @@ const STATION_ICON_EXPR = [
 // 单色红梯度。全场唯一暖色，独占 attention 重量。
 // 跨度：red-900（深酒红）→ rose-300（柔粉），4 档过渡均匀，可读性高。
 const SOURCE_COLORS = {
-  extreme: "#7f1d1d", // red-900    深酒红
-  high: "#b91c1c",    // red-700    深红
-  medium: "#dc2626",  // red-600    标准红
-  low: "#fda4af",     // rose-300   柔粉（可读但 recede）
-  DEFAULT: "#fee2e2", // red-100
+  extreme: "#7a1e10", // accent-deep  深酒红
+  high: "#b9341e",    // accent       深红
+  medium: "#b9341e",  // accent       标准红
+  low: "#fda4af",     // rose-300     柔粉（可读但 recede）
+  DEFAULT: "#b9341e",
 };
 
 const SOURCE_ICON_EXPR = [
@@ -271,86 +288,66 @@ function makeShapeIcon(shape, fillColor) {
   const c = sizeLogical / 2;
 
   if (shape === "house") {
-    // 房子：矩形底 + 三角顶（联想"矿厂"）
-    const roofTop = sizeLogical * 0.18;
-    const roofBottom = sizeLogical * 0.55;
-    const baseBottom = sizeLogical * 0.88;
-    const left = sizeLogical * 0.18;
-    const right = sizeLogical * 0.82;
-    // 用一条 path 一次画完，避免边缝
+    // 干净五边形，无烟囱；宽底 + 低矮屋顶让轮廓更稳重
+    const roofTop    = sizeLogical * 0.16;
+    const roofBottom = sizeLogical * 0.52;
+    const baseBottom = sizeLogical * 0.87;
+    const left       = sizeLogical * 0.15;
+    const right      = sizeLogical * 0.85;
     ctx.beginPath();
     ctx.moveTo(left, baseBottom);
     ctx.lineTo(left, roofBottom);
-    ctx.lineTo(c, roofTop);
+    ctx.lineTo(c,    roofTop);
     ctx.lineTo(right, roofBottom);
     ctx.lineTo(right, baseBottom);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // 烟囱（小矩形在屋顶右上）
-    const chW = sizeLogical * 0.1;
-    const chX = sizeLogical * 0.62;
-    const chTop = sizeLogical * 0.25;
-    const chBot = sizeLogical * 0.4;
+    // 小门洞——让图标可读性更好（不用单独描边，视觉减重）
+    const dW = sizeLogical * 0.22;
+    const dH = sizeLogical * 0.25;
+    const dX = c - dW / 2;
+    const dY = baseBottom - dH;
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.beginPath();
-    ctx.rect(chX, chTop, chW, chBot - chTop);
+    ctx.roundRect(dX, dY, dW, dH, sizeLogical * 0.04);
     ctx.fill();
-    ctx.stroke();
   } else if (shape === "diamond") {
-    // 菱形 + 内白点（联想"仪器/data point"）
+    // 略扁菱形（更像地图 pin / data point）+ 较大内白圆
+    const tY = sizeLogical * 0.08;
+    const bY = sizeLogical * 0.92;
+    const lX = sizeLogical * 0.1;
+    const rX = sizeLogical * 0.9;
     ctx.beginPath();
-    ctx.moveTo(c, sizeLogical * 0.1);
-    ctx.lineTo(sizeLogical * 0.9, c);
-    ctx.lineTo(c, sizeLogical * 0.9);
-    ctx.lineTo(sizeLogical * 0.1, c);
+    ctx.moveTo(c,  tY);
+    ctx.lineTo(rX, c);
+    ctx.lineTo(c,  bY);
+    ctx.lineTo(lX, c);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
     ctx.beginPath();
-    ctx.arc(c, c, sizeLogical * 0.1, 0, Math.PI * 2);
+    ctx.arc(c, c, sizeLogical * 0.18, 0, Math.PI * 2);
     ctx.fill();
   } else if (shape === "droplet") {
-    // 水滴（teardrop pointing down，联想"AMD 排放"）
-    // 顶部尖点 + 两侧 bezier 曲到底部圆滑
-    const top = sizeLogical * 0.1;
-    const bottom = sizeLogical * 0.92;
-    const wide = sizeLogical * 0.62;
+    // 饱满水滴 pin：tip 在顶部，两侧对称 bezier 到底部；比原版更宽更圆
+    const tipY  = sizeLogical * 0.07;
+    const midY  = sizeLogical * 0.56;   // 最宽处控制点 y
+    const botY  = sizeLogical * 0.93;
+    const hw    = sizeLogical * 0.37;   // 半宽
     ctx.beginPath();
-    ctx.moveTo(c, top);
-    ctx.bezierCurveTo(
-      c + wide / 2,
-      sizeLogical * 0.4,
-      c + wide / 2,
-      sizeLogical * 0.78,
-      c,
-      bottom,
-    );
-    ctx.bezierCurveTo(
-      c - wide / 2,
-      sizeLogical * 0.78,
-      c - wide / 2,
-      sizeLogical * 0.4,
-      c,
-      top,
-    );
+    ctx.moveTo(c, tipY);
+    ctx.bezierCurveTo(c + hw, tipY + (midY - tipY) * 0.45, c + hw, midY, c, botY);
+    ctx.bezierCurveTo(c - hw, midY, c - hw, tipY + (midY - tipY) * 0.45, c, tipY);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // 高光：左上一道小弧（让水滴更立体）
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 1.2;
+    // 内白圆：map-pin 质感
+    ctx.fillStyle = "rgba(255,255,255,0.58)";
     ctx.beginPath();
-    ctx.moveTo(c - wide * 0.18, sizeLogical * 0.36);
-    ctx.bezierCurveTo(
-      c - wide * 0.3,
-      sizeLogical * 0.5,
-      c - wide * 0.3,
-      sizeLogical * 0.65,
-      c - wide * 0.18,
-      sizeLogical * 0.74,
-    );
-    ctx.stroke();
+    ctx.arc(c, midY * 0.82, sizeLogical * 0.11, 0, Math.PI * 2);
+    ctx.fill();
   }
   return { image: ctx.getImageData(0, 0, sizePx, sizePx), pixelRatio: ratio };
 }
@@ -426,6 +423,9 @@ function MapView({
   // "图层刚注册完"这个变化上自动重跑一次。否则用户在 loadAll 完成前点击就会
   // 永远看不到第一次的高亮（要再点一次触发 analysisFocus 重新变化才行）。
   const [layersReady, setLayersReady] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ lng: -76.3, lat: 40.8 });
+  const [mapZoom, setMapZoom] = useState(8);
+  const [featureCount, setFeatureCount] = useState(0);
 
   // 聚焦 zoom-in 时按 entity id 查坐标用——loadAll 跑完之后塞进来
   const dataRefs = useRef({
@@ -440,11 +440,22 @@ function MapView({
   // spawnAcc } 的 Map；particles 每个带 sourceId，渲染/物理时按 source 查参数。
   const simRef = useRef({
     segmentsById: null,
+    widthBySegment: new Map(),
     active: false,
     sources: new Map(),
     particles: [],
     lastT: null,
     raf: null,
+  });
+
+  // 因果链动画状态（也是 mutate in place）
+  const evidenceRef = useRef({
+    active: false,
+    raf: null,
+    startT: null,
+    lines: [],
+    pulsePolyline: null,
+    pulseSpawnDist: 0,
   });
 
   // ============= 1. 初始化 mapbox 实例 =============
@@ -472,7 +483,7 @@ function MapView({
     });
     mapRef.current = map;
     // top-right 已经被 LayerControlPanel 占了，挪到 bottom-right 错开
-    map.addControl(new mapboxgl.NavigationControl(), "bottom-right");
+
 
     popupRef.current = new mapboxgl.Popup({
       closeButton: false,
@@ -531,6 +542,13 @@ function MapView({
 
         // 粒子流要用 segmentsById lookup（一次性 build，loadAll 阶段做完最快）
         simRef.current.segmentsById = buildSegmentsById(streamsGeoJSON);
+        simRef.current.widthBySegment = buildSegmentWidthMap(stations);
+        setFeatureCount(
+          (collieries?.length || 0) +
+          (stations?.length || 0) +
+          (sources?.length || 0) +
+          (streamsGeoJSON?.features?.length || 0),
+        );
 
         const collieryFC = {
           type: "FeatureCollection",
@@ -604,8 +622,63 @@ function MapView({
         };
 
         function setupLayers() {
+          // ── 底图单色化：把 light-v11 压缩成接近白纸，让 AMD 叠加层独占
+          //    视觉重量。按 type 批量覆写，try/catch 跳过不支持某属性的层。
+          for (const sl of map.getStyle().layers || []) {
+            try {
+              const id = sl.id;
+              if (sl.type === "background") {
+                map.setPaintProperty(id, "background-color", "#ffffff");
+              } else if (sl.type === "fill") {
+                if (/water/.test(id)) {
+                  map.setPaintProperty(id, "fill-color", "#dce8ef");
+                } else if (/building/.test(id)) {
+                  map.setPaintProperty(id, "fill-color", "#ebebeb");
+                  map.setPaintProperty(id, "fill-opacity", 0.4);
+                } else {
+                  map.setPaintProperty(id, "fill-color", "#f4f4f5");
+                  map.setPaintProperty(id, "fill-opacity", 0.7);
+                }
+              } else if (sl.type === "line") {
+                if (/water/.test(id)) {
+                  map.setPaintProperty(id, "line-color", "#c5dce7");
+                } else {
+                  map.setPaintProperty(id, "line-color", "#e2e2e2");
+                  map.setPaintProperty(id, "line-opacity", 0.55);
+                }
+              } else if (sl.type === "symbol") {
+                if (/poi|transit/.test(id)) {
+                  map.setLayoutProperty(id, "visibility", "none");
+                } else {
+                  map.setPaintProperty(id, "text-color", "#c0c0c0");
+                  map.setPaintProperty(id, "text-halo-color", "rgba(255,255,255,0.85)");
+                  map.setPaintProperty(id, "icon-opacity", 0);
+                }
+              }
+            } catch (_) { /* layer doesn't support this property */ }
+          }
+
           // 必须在 addLayer(symbol) 之前完成图标注册
           registerMarkerIcons(map);
+
+          // hover glow：图标 hover 时在其下方泛出一圈彩色光晕
+          if (!map.getSource(HOVER_SOURCE_ID)) {
+            map.addSource(HOVER_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer({
+              id: HOVER_LAYER_ID,
+              type: "circle",
+              source: HOVER_SOURCE_ID,
+              paint: {
+                "circle-radius": 22,
+                "circle-color": ["coalesce", ["get", "color"], "#404040"],
+                "circle-opacity": 0.14,
+                "circle-blur": 0.65,
+              },
+            });
+          }
 
           // streams — 撤后的 slate-blue，浏览态低 opacity 不抢 marker 戏
           if (!map.getSource(STREAM_SOURCE_ID)) {
@@ -618,7 +691,7 @@ function MapView({
               type: "line",
               source: STREAM_SOURCE_ID,
               paint: {
-                "line-color": "#94a3b8", // slate-400 muted
+                "line-color": "#a3a3a3", // ink-4 muted
                 "line-width": 1.1,
                 "line-opacity": 0.45,
               },
@@ -631,7 +704,7 @@ function MapView({
               source: STREAM_SOURCE_ID,
               filter: ["==", ["get", "id"], "_none_"],
               paint: {
-                "line-color": "#334155", // slate-700
+                "line-color": "#2f4858", // accent-steel
                 "line-width": 2.4,
               },
             });
@@ -664,8 +737,8 @@ function MapView({
                     1, "#fecaca", // red-200 浅
                     10, "#fca5a5", // red-300
                     20, "#ef4444", // red-500
-                    35, "#b91c1c", // red-700
-                    50, "#7f1d1d", // red-900 最深
+                    35, "#b9341e", // accent
+                    50, "#7a1e10", // accent-deep 最深
                   ],
                   "fill-extrusion-opacity": 0.82,
                 },
@@ -712,11 +785,11 @@ function MapView({
                     ["linear"],
                     ["heatmap-density"],
                     0, "rgba(0,0,0,0)",
-                    0.15, "rgba(254,202,202,0.3)", // red-200
-                    0.4, "rgba(252,165,165,0.6)", // red-300
-                    0.65, "rgba(220,38,38,0.78)", // red-600
-                    0.85, "rgba(153,27,27,0.88)", // red-800
-                    1, "rgba(127,29,29,0.95)", // red-900
+                    0.15, "rgba(212,212,212,0.3)",  // ink-5
+                    0.4, "rgba(115,115,115,0.6)",   // ink-3
+                    0.65, "rgba(64,64,64,0.78)",    // ink-2
+                    0.85, "rgba(20,20,20,0.88)",
+                    1, "rgba(10,10,10,0.95)",       // ink
                   ],
                   "heatmap-opacity": 0.85,
                 },
@@ -753,17 +826,17 @@ function MapView({
                     10, 42,
                     13, 70,
                   ],
-                  // 颜色用稍橙红的色阶，跟 colliery 红区分
+                  // accent-steel 蓝灰梯度，跟 colliery 灰区分，暗示"水体"
                   "heatmap-color": [
                     "interpolate",
                     ["linear"],
                     ["heatmap-density"],
                     0, "rgba(0,0,0,0)",
-                    0.15, "rgba(254,215,170,0.35)", // orange-200
-                    0.4, "rgba(251,146,60,0.65)", // orange-400
-                    0.65, "rgba(234,88,12,0.8)", // orange-600
-                    0.85, "rgba(194,65,12,0.9)", // orange-700
-                    1, "rgba(124,45,18,0.95)", // orange-900
+                    0.15, "rgba(148,168,182,0.35)", // accent-steel light
+                    0.4, "rgba(80,110,128,0.65)",
+                    0.65, "rgba(47,72,88,0.80)",    // accent-steel
+                    0.85, "rgba(30,50,65,0.90)",
+                    1, "rgba(15,30,42,0.95)",       // accent-steel deep
                   ],
                   "heatmap-opacity": 0.8,
                 },
@@ -828,7 +901,7 @@ function MapView({
           }
 
           // sim halo：参与模拟的 AMD（anchor + extras）统一用一个鲜亮色。
-          // navy blue-900 #1e3a8a，跟 cream 底色高对比，比浅蓝沉稳。
+          // accent-steel #2f4858，冷色但不撞红色 source，跟整体 ink 系统一致。
           if (!map.getSource(SIM_HALO_SOURCE_ID)) {
             map.addSource(SIM_HALO_SOURCE_ID, {
               type: "geojson",
@@ -841,8 +914,8 @@ function MapView({
                 source: SIM_HALO_SOURCE_ID,
                 paint: {
                   "circle-radius": 12,
-                  "circle-color": "rgba(30, 58, 138, 0.12)",
-                  "circle-stroke-color": "#1e3a8a",
+                  "circle-color": "rgba(47, 72, 88, 0.12)",
+                  "circle-stroke-color": "#2f4858",
                   "circle-stroke-width": 2.4,
                   "circle-stroke-opacity": 0.95,
                 },
@@ -900,6 +973,51 @@ function MapView({
                   "circle-color": colorByProgress,
                   "circle-opacity": ["coalesce", ["get", "mass"], 1],
                   "circle-blur": 0.18,
+                },
+              },
+              COLL_LAYER_ID,
+            );
+          }
+
+          // evidence chain：矿场→排放点虚线 + 扫描脉冲（因果链动画）
+          if (!map.getSource(EVIDENCE_CHAIN_SOURCE_ID)) {
+            map.addSource(EVIDENCE_CHAIN_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer(
+              {
+                id: EVIDENCE_CHAIN_LAYER_ID,
+                type: "line",
+                source: EVIDENCE_CHAIN_SOURCE_ID,
+                paint: {
+                  "line-color": "#404040",
+                  "line-width": 1.4,
+                  "line-dasharray": [3, 5],
+                  "line-opacity": ["coalesce", ["get", "opacity"], 0],
+                },
+              },
+              COLL_LAYER_ID,
+            );
+          }
+          if (!map.getSource(EVIDENCE_PULSE_SOURCE_ID)) {
+            map.addSource(EVIDENCE_PULSE_SOURCE_ID, {
+              type: "geojson",
+              data: { type: "FeatureCollection", features: [] },
+            });
+            map.addLayer(
+              {
+                id: EVIDENCE_PULSE_LAYER_ID,
+                type: "circle",
+                source: EVIDENCE_PULSE_SOURCE_ID,
+                paint: {
+                  "circle-radius": 5,
+                  "circle-color": "#ffffff",
+                  "circle-opacity": ["coalesce", ["get", "opacity"], 0],
+                  "circle-blur": 0.2,
+                  "circle-stroke-width": 1.5,
+                  "circle-stroke-color": "#2f4858",
+                  "circle-stroke-opacity": ["coalesce", ["get", "opacity"], 0],
                 },
               },
               COLL_LAYER_ID,
@@ -976,21 +1094,19 @@ function MapView({
             popup.remove();
           }
 
-          // All popups inherit Helvetica from <body>; weights drive hierarchy.
-          const popupBase = `font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:1.4`;
+          const SEV_BG  = { extreme: "#7a1e10", high: "#b9341e", medium: "#b9341e", low: "#fda4af" };
+          const SEV_FG  = { extreme: "#fff",    high: "#fff",    medium: "#fff",    low: "#7a1e10" };
+          const uiSans  = `font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif`;
+          const uiMono  = `font-family:'JetBrains Mono','IBM Plex Mono','SF Mono',Menlo,monospace`;
+          const popBase = `${uiSans};font-size:11.5px;line-height:1.5;color:#0a0a0a`;
 
           map.on("mouseenter", COLL_LAYER_ID, (e) => {
             const f = e.features?.[0];
             if (!f) return;
             const p = f.properties || {};
-            showPopup(
-              e,
-              `<div style="${popupBase}">
-                <div style="font-weight:700;color:#0f172a">${p.name || p.id}</div>
-                <div style="color:#475569;font-style:italic">${p.operator || ""}</div>
-                <div style="color:#94a3b8;font-size:10px;letter-spacing:0.06em;text-transform:uppercase">${p.status || ""}</div>
-              </div>`,
-            );
+            const operator = p.operator ? `<div style="margin-top:2px;font-size:10.5px;color:#737373">${p.operator}</div>` : "";
+            const status   = p.status   ? `<div style="margin-top:5px;${uiMono};font-size:9px;color:#a3a3a3;letter-spacing:0.1em;text-transform:uppercase">${p.status}</div>` : "";
+            showPopup(e, `<div style="${popBase}"><div style="font-weight:500">${p.name || p.id}</div>${operator}${status}</div>`);
           });
           map.on("mouseleave", COLL_LAYER_ID, hidePopup);
 
@@ -998,14 +1114,9 @@ function MapView({
             const f = e.features?.[0];
             if (!f) return;
             const p = f.properties || {};
-            showPopup(
-              e,
-              `<div style="${popupBase}">
-                <div style="font-weight:700;color:#0f172a">${p.name || p.id}</div>
-                <div style="color:#475569;font-style:italic">${p.type || ""}</div>
-                <div style="color:#94a3b8;font-size:10px">${p.agency || ""}</div>
-              </div>`,
-            );
+            const type   = p.type   ? `<div style="margin-top:2px;font-size:10.5px;color:#737373">${p.type}</div>` : "";
+            const agency = p.agency ? `<div style="margin-top:5px;${uiMono};font-size:9px;color:#a3a3a3;letter-spacing:0.1em;text-transform:uppercase">${p.agency}</div>` : "";
+            showPopup(e, `<div style="${popBase}"><div style="font-weight:500">${p.name || p.id}</div>${type}${agency}</div>`);
           });
           map.on("mouseleave", STATION_LAYER_ID, hidePopup);
 
@@ -1013,14 +1124,10 @@ function MapView({
             const f = e.features?.[0];
             if (!f) return;
             const p = f.properties || {};
-            showPopup(
-              e,
-              `<div style="${popupBase}">
-                <div style="font-weight:700;color:#0f172a">AMD discharge ${p.name || p.id}</div>
-                <div style="color:#475569;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:10px">${p.severity || "—"}</div>
-                <div style="color:#94a3b8;font-size:10px;font-style:italic">${p.sf_priority || ""}</div>
-              </div>`,
-            );
+            const sev = p.severity || "";
+            const sevPill = sev ? `<span style="display:inline-block;margin-left:7px;padding:2px 8px;border-radius:999px;background:${SEV_BG[sev]||"#737373"};color:${SEV_FG[sev]||"#fff"};${uiMono};font-size:8px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;vertical-align:middle">${sev}</span>` : "";
+            const priority = p.sf_priority ? `<div style="margin-top:5px;${uiMono};font-size:9px;color:#a3a3a3;letter-spacing:0.08em">PA DEP · ${p.sf_priority}</div>` : "";
+            showPopup(e, `<div style="${popBase}"><div style="font-weight:500">AMD discharge <span style="color:#737373;font-weight:400">${p.name || p.id}</span>${sevPill}</div>${priority}</div>`);
           });
           map.on("mouseleave", SRC_LAYER_ID, hidePopup);
 
@@ -1028,15 +1135,49 @@ function MapView({
             const f = e.features?.[0];
             if (!f) return;
             const p = f.properties || {};
-            showPopup(
-              e,
-              `<div style="${popupBase}">
-                <div style="font-weight:700;color:#0f172a">${p.name || "Unnamed creek"}</div>
-                <div style="color:#94a3b8;font-size:10px;font-style:italic">HUC ${p.huc8 || "—"} · ${p.length_km != null ? p.length_km.toFixed(2) + " km" : ""}</div>
-              </div>`,
-            );
+            const meta = [
+              p.huc8   ? `HUC ${p.huc8}` : null,
+              p.length_km != null ? `${Number(p.length_km).toFixed(2)} km` : null,
+            ].filter(Boolean).join("  ·  ");
+            const metaRow = meta ? `<div style="margin-top:5px;${uiMono};font-size:9px;color:#a3a3a3;letter-spacing:0.08em">${meta}</div>` : "";
+            showPopup(e, `<div style="${popBase}"><div style="font-weight:500">${p.name || "Unnamed creek"}</div>${metaRow}</div>`);
           });
           map.on("mouseleave", STREAM_LAYER_ID, hidePopup);
+
+          map.on("mousemove", (e) => {
+            setCursorPos({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+
+            // hover glow：扫描图标层，命中则更新光晕 + 切 pointer 光标
+            const iconLayers = [COLL_LAYER_ID, STATION_LAYER_ID, SRC_LAYER_ID]
+              .filter((l) => map.getLayer(l));
+            const hits = map.queryRenderedFeatures(e.point, { layers: iconLayers });
+            const hoverSrc = map.getSource(HOVER_SOURCE_ID);
+            if (hits.length > 0) {
+              const layerId = hits[0].layer?.id;
+              const color =
+                layerId === STATION_LAYER_ID ? "#2f4858" :
+                layerId === SRC_LAYER_ID     ? "#b9341e" :
+                "#404040";
+              map.getCanvas().style.cursor = "pointer";
+              hoverSrc?.setData({
+                type: "FeatureCollection",
+                features: [{
+                  type: "Feature",
+                  geometry: hits[0].geometry,
+                  properties: { color },
+                }],
+              });
+            } else {
+              map.getCanvas().style.cursor = "crosshair";
+              hoverSrc?.setData({ type: "FeatureCollection", features: [] });
+            }
+          });
+          map.on("zoom", () => {
+            setMapZoom(map.getZoom());
+          });
+          map.on("mouseleave", () => {
+            map.getSource(HOVER_SOURCE_ID)?.setData({ type: "FeatureCollection", features: [] });
+          });
 
           setLayersReady(true);
         }
@@ -1138,7 +1279,7 @@ function MapView({
     // 强度可视化：跟 viz toggle 走，跟 2D/3D 解耦。柱体在低 zoom 几乎看不见，
     // 但 zoom 进去（focus）时跟 heatmap 互补——所以两层都开着，view 决定哪个
     // 视觉上占主导。
-    setVis(COLL_EXTRUDE_LAYER_ID, !!vizColliery);
+    setVis(COLL_EXTRUDE_LAYER_ID, false);
     setVis(COLL_HEATMAP_LAYER_ID, !!vizColliery);
     setVis(AMD_HEATMAP_LAYER_ID, !!vizAmd);
     setVis(STATION_LAYER_ID, visibleLayers.stations);
@@ -1148,6 +1289,149 @@ function MapView({
     setVis(STREAM_LAYER_ID, visibleLayers.streams);
     setVis(ACTIVE_PATH_LAYER_ID, visibleLayers.streams);
   }, [visibleLayers, layersReady, vizColliery, vizAmd]);
+
+  // ============= 3b. evidence chain 动画 =============
+  // 触发：analysisFocus = pollution_source 且 relatedIds.colliery_ids 非空。
+  // 动画：①矿场→排放点虚线淡入，②白色脉冲沿下游路径扫过，③整体淡出。
+  useEffect(() => {
+    const map = mapRef.current;
+    const ec = evidenceRef.current;
+
+    // 先清空上一次动画
+    if (ec.raf) { cancelAnimationFrame(ec.raf); ec.raf = null; }
+    ec.active = false;
+    const chainSrc = map?.getSource?.(EVIDENCE_CHAIN_SOURCE_ID);
+    const pulseSrc = map?.getSource?.(EVIDENCE_PULSE_SOURCE_ID);
+    const empty = { type: "FeatureCollection", features: [] };
+    if (chainSrc) chainSrc.setData(empty);
+    if (pulseSrc) pulseSrc.setData(empty);
+
+    if (!map || !layersReady) return;
+    if (analysisFocus?.kind !== "pollution_source") return;
+
+    const sid = analysisFocus.id;
+    const collIds = relatedIds?.colliery_ids || [];
+    if (collIds.length === 0) return;
+    if (!simRef.current.segmentsById) return;
+
+    // 构建矿场→排放点连线
+    const srcObj = (dataRefs.current.sources || []).find((s) => s.id === sid);
+    if (!srcObj || typeof srcObj.longitude !== "number") return;
+    const srcCoord = [srcObj.longitude, srcObj.latitude];
+
+    const collById = new Map();
+    for (const c of dataRefs.current.collieries || []) collById.set(c.id, c);
+
+    const lines = collIds
+      .map((cid) => collById.get(cid))
+      .filter((c) => c && typeof c.longitude === "number")
+      .map((c) => ({
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [[c.longitude, c.latitude], srcCoord],
+        },
+        properties: { opacity: 0 },
+      }));
+
+    if (lines.length === 0) return;
+
+    // 构建脉冲路径（harm 的下游 polyline）
+    const harm = dataRefs.current.harmsByPid?.get(sid);
+    let pulsePolyline = null;
+    let pulseSpawnDist = 0;
+    if (harm) {
+      const segIds = (harm.affected_streams || []).map((s) => s.id);
+      if (segIds.length > 0) {
+        const pl = buildPolylineFromPath(segIds, simRef.current.segmentsById);
+        if (pl && pl.totalMeters > 1) {
+          pulsePolyline = pl;
+          pulseSpawnDist = projectOntoPolyline(
+            srcObj.longitude, srcObj.latitude, pl,
+          );
+          if (pl.totalMeters - pulseSpawnDist < 1) pulseSpawnDist = 0;
+        }
+      }
+    }
+
+    ec.active = true;
+    ec.lines = lines;
+    ec.pulsePolyline = pulsePolyline;
+    ec.pulseSpawnDist = pulseSpawnDist;
+    ec.startT = null;
+
+    const FADE_IN  = 500;
+    const HOLD     = 2800;
+    const FADE_OUT = 700;
+    const TOTAL    = FADE_IN + HOLD + FADE_OUT;
+    const pulseLen = pulsePolyline
+      ? Math.max(1, pulsePolyline.totalMeters - pulseSpawnDist)
+      : 0;
+    const pulseSpeed = pulsePolyline ? pulseLen / (HOLD / 1000) : 0; // m/s
+
+    const tick = (now) => {
+      if (!ec.active) return;
+      if (ec.startT == null) ec.startT = now;
+      const t = now - ec.startT;
+
+      let lineOpacity;
+      if (t < FADE_IN) {
+        lineOpacity = t / FADE_IN;
+      } else if (t < FADE_IN + HOLD) {
+        lineOpacity = 1;
+      } else if (t < TOTAL) {
+        lineOpacity = 1 - (t - FADE_IN - HOLD) / FADE_OUT;
+      } else {
+        if (chainSrc) chainSrc.setData(empty);
+        if (pulseSrc) pulseSrc.setData(empty);
+        ec.active = false;
+        ec.raf = null;
+        return;
+      }
+
+      if (chainSrc) {
+        chainSrc.setData({
+          type: "FeatureCollection",
+          features: ec.lines.map((f) => ({
+            ...f,
+            properties: { opacity: Math.max(0, lineOpacity * 0.72) },
+          })),
+        });
+      }
+
+      // 脉冲点：FADE_IN 结束后开始扫，进/出各 200ms 淡入淡出
+      if (pulseSrc && ec.pulsePolyline && t >= FADE_IN) {
+        const holdT = Math.min(t - FADE_IN, HOLD);
+        const dist = Math.min(
+          ec.pulseSpawnDist + pulseSpeed * (holdT / 1000),
+          ec.pulsePolyline.totalMeters - 1,
+        );
+        const pt = pointAndTangentAtDistance(ec.pulsePolyline, dist);
+        if (pt) {
+          const rampUp   = Math.min(1, (t - FADE_IN) / 200);
+          const rampDown = Math.min(1, (TOTAL - t) / 200);
+          const pulseOpacity = Math.min(rampUp, rampDown);
+          pulseSrc.setData({
+            type: "FeatureCollection",
+            features: [{
+              type: "Feature",
+              geometry: { type: "Point", coordinates: pt.point },
+              properties: { opacity: Math.max(0, pulseOpacity) },
+            }],
+          });
+        }
+      }
+
+      ec.raf = requestAnimationFrame(tick);
+    };
+
+    ec.raf = requestAnimationFrame(tick);
+
+    return () => {
+      if (ec.raf) { cancelAnimationFrame(ec.raf); ec.raf = null; }
+      ec.active = false;
+    };
+  }, [analysisFocus, relatedIds, layersReady]);
 
   // ============= 4. analysisFocus / relatedIds → 重画 paint expression =============
   // 依赖 layersReady：图层刚注册完时也会触发一次，让用户首次点击的 focus
@@ -1471,6 +1755,12 @@ function MapView({
         spawnDist = projectOntoPolyline(src.longitude, src.latitude, polyline);
         if (polyline.totalMeters - spawnDist < 1) spawnDist = 0;
       }
+      const halfWidthAt = buildHalfWidthFn(
+        segIds,
+        polyline.segmentStartDists,
+        simRef.current.widthBySegment,
+        polyline.totalMeters,
+      );
       next.set(sid, {
         polyline,
         hotColor:
@@ -1478,6 +1768,7 @@ function MapView({
         emissionRate,
         spawnDist,
         spawnAcc: 0,
+        halfWidthAt,
       });
     }
 
@@ -1523,8 +1814,10 @@ function MapView({
       const dt = Math.min(0.05, (now - st.lastT) / 1000);
       st.lastT = now;
 
-      const { u, D, k, jitterSigma } = PARTICLE_PHYSICS;
+      const { u, D, k, lateralTimeScale } = PARTICLE_PHYSICS;
       const sqrt2Ddt = Math.sqrt(2 * D * dt);
+      // 横向扩散：sqrt(2·Dy·dt_phys) = hw·sqrt(dt·lateralTimeScale/6)
+      const latSigScale = lateralSigmaScale(dt, lateralTimeScale);
 
       // -- spawn: 各 source 算 desired，总和超 room 时按比例缩放，公平分配 --
       const desired = new Map();
@@ -1551,12 +1844,13 @@ function MapView({
           st.particles.push({
             sourceId: sid,
             dist: src.spawnDist,
-            lateral: randn() * jitterSigma,
+            lateral: 0,
             mass: 1,
             age: 0,
             speedMul:
               PARTICLE_DEFAULTS.speedJitterMin +
               Math.random() * PARTICLE_DEFAULTS.speedJitterSpan,
+            trail: [],
           });
         }
       }
@@ -1568,6 +1862,12 @@ function MapView({
         if (!src) continue; // source 已被移除
         p.dist += u * p.speedMul * dt + sqrt2Ddt * randn();
         if (p.dist < src.spawnDist) p.dist = src.spawnDist;
+
+        // 2D 横向扩散：扩散速率由河宽驱动（宽河扩散快）；无硬边界——
+        // 超出河道的粒子代表 AMD 渗入两岸土壤（capillary action）。
+        const hw = src.halfWidthAt(p.dist);
+        p.lateral += hw * latSigScale * randn();
+
         p.mass *= Math.exp(-k * dt);
         p.age += dt;
         if (p.dist > src.polyline.totalMeters) continue;
@@ -1601,16 +1901,39 @@ function MapView({
           1,
           Math.max(0, (p.dist - src.spawnDist) / denom),
         );
+        // 靠近源头粒子略大——强化"plume"浓度感，下游随扩散收缩
+        const pSize = PARTICLE_DEFAULTS.particleSize * (1.2 - progress * 0.45);
+        // 主粒子
         features.push({
           type: "Feature",
           geometry: { type: "Point", coordinates: coord },
           properties: {
             mass: Math.min(1, p.mass),
             progress,
-            hot: src.hotColor, // 每个粒子带本源的 hot 色：多色汇流可视化
-            size: PARTICLE_DEFAULTS.particleSize,
+            hot: src.hotColor,
+            size: pSize,
           },
         });
+        // 拖影：从历史坐标生成逐渐消隐的 ghost 点，产生运动模糊感
+        const tLen = p.trail ? p.trail.length : 0;
+        for (let ti = tLen - 1; ti >= 0; ti--) {
+          const trailFrac = (tLen - ti) / (TRAIL_LEN + 1);
+          const tr = p.trail[ti];
+          features.push({
+            type: "Feature",
+            geometry: { type: "Point", coordinates: tr.coord },
+            properties: {
+              mass: Math.min(1, p.mass) * (1 - trailFrac * 0.88),
+              progress: tr.progress,
+              hot: src.hotColor,
+              size: pSize * (1 - trailFrac * 0.55),
+            },
+          });
+        }
+        // 存当前坐标到拖影历史，供下帧使用
+        if (!p.trail) p.trail = [];
+        if (p.trail.length >= TRAIL_LEN) p.trail.shift();
+        p.trail.push({ coord: [coord[0], coord[1]], progress });
       }
       const sourceMb = map.getSource(PARTICLES_SOURCE_ID);
       if (sourceMb) {
@@ -1624,13 +1947,15 @@ function MapView({
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-      }}
-    />
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div ref={containerRef} style={{ position: "absolute", inset: 0 }} />
+      <StatusBar
+        lng={cursorPos.lng}
+        lat={cursorPos.lat}
+        zoom={mapZoom}
+        featureCount={featureCount}
+      />
+    </div>
   );
 }
 

@@ -24,9 +24,9 @@ const LAYER_LEGENDS = {
     chips: [
       { color: "#0a0a0a", label: "Active" },
       { color: "#a3a3a3", label: "Inactive" },
-      { color: "#525252", label: "Abandoned" },
-      { color: "#4d6033", label: "Reclaimed" },
-      { color: "#e5e5e5", label: "Proposed" },
+      { color: "#404040", label: "Abandoned" },
+      { color: "#65a30d", label: "Reclaimed" },
+      { color: "#e2e8f0", label: "Proposed" },
     ],
   },
   stations: {
@@ -45,15 +45,15 @@ const LAYER_LEGENDS = {
     chips: [
       { color: "#7a1e10", label: "Extreme" },
       { color: "#b9341e", label: "High" },
-      { color: "#d4634a", label: "Medium" },
-      { color: "#efb5a4", label: "Low" },
+      { color: "#b9341e", label: "Medium" },
+      { color: "#fda4af", label: "Low" },
     ],
   },
   streams: {
     label: "Streams",
     shape: "line",
     description: "USGS NHD HR flowlines",
-    chips: [{ color: "#737373", label: "Stream / artificial path" }],
+    chips: [{ color: "#a3a3a3", label: "Stream / artificial path" }],
   },
 };
 
@@ -74,20 +74,19 @@ function Chip({ color, shape = "circle" }) {
     return (
       <svg width={SVG_SIZE} height={SVG_SIZE} viewBox="0 0 22 22" style={common}>
         <path
-          d="M4 19.4 L4 12.1 L11 4 L18 12.1 L18 19.4 Z"
+          d="M3.3 19.1 L3.3 11.4 L11 3.5 L18.7 11.4 L18.7 19.1 Z"
           fill={color}
           stroke={STROKE}
           strokeWidth="1"
           strokeLinejoin="round"
         />
         <rect
-          x="13.6"
-          y="5.5"
-          width="2.2"
-          height="3.3"
-          fill={color}
-          stroke={STROKE}
-          strokeWidth="0.8"
+          x="8.6"
+          y="13.6"
+          width="4.8"
+          height="5.5"
+          rx="0.9"
+          fill="rgba(255,255,255,0.55)"
         />
       </svg>
     );
@@ -103,7 +102,7 @@ function Chip({ color, shape = "circle" }) {
           strokeWidth="1"
           strokeLinejoin="round"
         />
-        <circle cx="11" cy="11" r="2.2" fill="#ffffff" />
+        <circle cx="11" cy="11" r="4.0" fill="#ffffff" />
       </svg>
     );
   }
@@ -112,12 +111,13 @@ function Chip({ color, shape = "circle" }) {
     return (
       <svg width={SVG_SIZE} height={SVG_SIZE} viewBox="0 0 22 22" style={common}>
         <path
-          d="M11 2.2 C17.8 8 17.8 16.5 11 20.2 C4.2 16.5 4.2 8 11 2.2 Z"
+          d="M11 1.5 C19.1 7.1 19.1 13.4 11 20.5 C2.9 13.4 2.9 7.1 11 1.5 Z"
           fill={color}
           stroke={STROKE}
           strokeWidth="1"
           strokeLinejoin="round"
         />
+        <circle cx="11" cy="9.8" r="2.2" fill="rgba(255,255,255,0.58)" />
       </svg>
     );
   }
@@ -425,7 +425,9 @@ function LayerControlPanel({
             width: 9,
           }}
         >
-          ▸
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ display: "block" }}>
+            <path d="M2 1.5l3 2.5-3 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </span>
         <span
           style={{

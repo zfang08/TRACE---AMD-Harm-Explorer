@@ -52,9 +52,9 @@ function IntroOverlay({ onEnter }) {
         inset: 0,
         zIndex: 100,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(250,250,250,0.74) 50%, rgba(244,244,245,0.78) 100%)",
-        backdropFilter: "blur(36px) saturate(170%)",
-        WebkitBackdropFilter: "blur(36px) saturate(170%)",
+          "linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(250,250,250,0.42) 50%, rgba(244,244,245,0.48) 100%)",
+        backdropFilter: "blur(24px) saturate(150%)",
+        WebkitBackdropFilter: "blur(24px) saturate(150%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -99,7 +99,7 @@ function IntroOverlay({ onEnter }) {
         {/* 1: wordmark — Inter, very tight tracking, instrument-precise */}
         <h1
           style={stageStyle(1, {
-            fontSize: "clamp(76px, 11vw, 156px)",
+            fontSize: "clamp(48px, 7vw, 96px)",
             fontWeight: 500,
             letterSpacing: "-0.045em",
             color: "var(--ink)",
@@ -151,7 +151,7 @@ function IntroOverlay({ onEnter }) {
           />
         </div>
 
-        {/* tagline — Inter, restrained, instrument-spec language */}
+        {/* tagline — Fraunces display serif for editorial weight */}
         <div
           style={stageStyle(2, {
             marginTop: 22,
@@ -159,10 +159,12 @@ function IntroOverlay({ onEnter }) {
             fontWeight: 400,
             color: "var(--ink-2)",
             lineHeight: 1.55,
-            letterSpacing: "-0.005em",
+            letterSpacing: "0.005em",
             maxWidth: 480,
             marginLeft: "auto",
             marginRight: "auto",
+            fontFamily: "var(--font-display)",
+            fontVariationSettings: '"opsz" 48, "wght" 400, "SOFT" 100, "WONK" 1',
           })}
         >
           Mines, discharge points, monitoring stations and the streams
@@ -202,16 +204,25 @@ function IntroOverlay({ onEnter }) {
             }}
           >
             <span>Open the atlas</span>
-            <span
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
               style={{
-                fontSize: 14,
-                lineHeight: 1,
+                display: "block",
                 transform: hovering ? "translateX(2px)" : "translateX(0)",
                 transition: `transform 260ms ${EASE}`,
               }}
             >
-              →
-            </span>
+              <path
+                d="M2.5 7h9M8 3.5l3.5 3.5L8 10.5"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
 

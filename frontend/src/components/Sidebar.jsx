@@ -101,9 +101,10 @@ function Sidebar({
   onRemoveExtraSource,
   maxSimSources,
 }) {
-  const [colliery, setColliery] = useState(null);
-  const [station, setStation] = useState(null);
-  const [harm, setHarm] = useState(null);
+  // undefined = fetch in progress, null = fetch done but not found, object = found
+  const [colliery, setColliery] = useState(undefined);
+  const [station, setStation] = useState(undefined);
+  const [harm, setHarm] = useState(undefined);
   const [searchQ, setSearchQ] = useState("");
 
   // 进场动画：首次挂载时强制视觉上是 collapsed，下一帧再切到 props.collapsed
@@ -119,46 +120,43 @@ function Sidebar({
   // colliery detail
   useEffect(() => {
     if (analysisFocus?.kind !== "colliery") {
-      setColliery(null);
+      setColliery(undefined);
       return;
     }
+    setColliery(undefined); // reset to loading when id changes
     let cancelled = false;
     getCollieryById(analysisFocus.id)
-      .then((c) => !cancelled && setColliery(c))
+      .then((c) => !cancelled && setColliery(c ?? null))
       .catch(() => !cancelled && setColliery(null));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [analysisFocus]);
 
   // station detail
   useEffect(() => {
     if (analysisFocus?.kind !== "station") {
-      setStation(null);
+      setStation(undefined);
       return;
     }
+    setStation(undefined);
     let cancelled = false;
     getStationById(analysisFocus.id)
-      .then((s) => !cancelled && setStation(s))
+      .then((s) => !cancelled && setStation(s ?? null))
       .catch(() => !cancelled && setStation(null));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [analysisFocus]);
 
   // harm detail (drill-down)
   useEffect(() => {
     if (!selectedHarmId) {
-      setHarm(null);
+      setHarm(undefined);
       return;
     }
+    setHarm(undefined);
     let cancelled = false;
     getHarmById(selectedHarmId)
-      .then((h) => !cancelled && setHarm(h))
+      .then((h) => !cancelled && setHarm(h ?? null))
       .catch(() => !cancelled && setHarm(null));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [selectedHarmId]);
 
   // segment props piggy-back from MapView click; no separate fetch needed
@@ -240,29 +238,39 @@ function Sidebar({
     maxSimSources,
   };
   let mainPanel = null;
-  if (selectedHarmId && harm) {
-    mainPanel = (
-      <HarmPanel
-        harm={harm}
-        onBack={onHarmBack}
-        backLabel="Back"
-        onFocus={onFocus}
-        {...simProps}
-      />
-    );
+  if (selectedHarmId) {
+    if (harm === undefined) {
+      mainPanel = <Loading />;
+    } else if (harm) {
+      mainPanel = (
+        <HarmPanel
+          harm={harm}
+          onBack={onHarmBack}
+          backLabel="Back"
+          onFocus={onFocus}
+          {...simProps}
+        />
+      );
+    } else {
+      mainPanel = <NotFound label="Harm record not found." />;
+    }
   } else if (analysisFocus) {
     if (analysisFocus.kind === "colliery") {
-      mainPanel = colliery ? (
-        <CollieryPanel colliery={colliery} onHarmSelect={onHarmSelect} />
-      ) : (
-        <Loading />
-      );
+      if (colliery === undefined) {
+        mainPanel = <Loading />;
+      } else if (colliery) {
+        mainPanel = <CollieryPanel colliery={colliery} onHarmSelect={onHarmSelect} />;
+      } else {
+        mainPanel = <NotFound label="Colliery record not found." />;
+      }
     } else if (analysisFocus.kind === "station") {
-      mainPanel = station ? (
-        <StationPanel station={station} onHarmSelect={onHarmSelect} />
-      ) : (
-        <Loading />
-      );
+      if (station === undefined) {
+        mainPanel = <Loading />;
+      } else if (station) {
+        mainPanel = <StationPanel station={station} onHarmSelect={onHarmSelect} />;
+      } else {
+        mainPanel = <NotFound label="Station record not found." />;
+      }
     } else if (analysisFocus.kind === "pollution_source") {
       mainPanel = (
         <PollutionSourcePanel
@@ -355,14 +363,14 @@ function Sidebar({
         <VizToggle
           on={!!vizColliery}
           label="Colliery pollution"
-          color="var(--accent-deep)"
-          hint={vizColliery ? "heat + cols" : "off"}
+          color="var(--ink-2)"
+          hint={vizColliery ? "heatmap" : "off"}
           onClick={onToggleVizColliery}
         />
         <VizToggle
           on={!!vizAmd}
           label="AMD discharge"
-          color="var(--accent)"
+          color="var(--accent-steel)"
           hint={vizAmd ? "heatmap" : "off"}
           onClick={onToggleVizAmd}
         />
@@ -455,7 +463,9 @@ function Sidebar({
             width: 9,
           }}
         >
-          ▸
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" style={{ display: "block" }}>
+            <path d="M2 1.5l3 2.5-3 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </span>
         <span
           style={{
@@ -688,15 +698,21 @@ function Sidebar({
 
 function Loading() {
   return (
-    <div
-      style={{
-        padding: 16,
-        color: "#64748b",
-        fontSize: 11.5,
-        fontStyle: "italic",
-      }}
-    >
-      Loading…
+    <div style={{ padding: 16, display: "flex", alignItems: "center", gap: 8 }}>
+      <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+        Loading
+      </span>
+      <span className="loading-dot" />
+      <span className="loading-dot" />
+      <span className="loading-dot" />
+    </div>
+  );
+}
+
+function NotFound({ label }) {
+  return (
+    <div style={{ padding: "14px 16px", fontSize: 11, color: "var(--ink-4)", lineHeight: 1.55 }}>
+      {label || "No data available."}
     </div>
   );
 }

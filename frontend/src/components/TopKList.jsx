@@ -1,52 +1,47 @@
 import React from "react";
 
 const SEVERITY_BG = {
-  extreme: "#7f1d1d",
-  high: "#b91c1c",
-  medium: "#dc2626",
+  extreme: "#7a1e10",
+  high: "#b9341e",
+  medium: "#b9341e",
   low: "#fda4af",
 };
 const SEVERITY_FG = {
   extreme: "#ffffff",
   high: "#ffffff",
   medium: "#ffffff",
-  low: "#7f1d1d",
+  low: "#7a1e10",
 };
 
-// Colliery status colors — kept in sync with MapView (earth / stone palette)
 const STATUS_COLOR = {
-  ACTIVE: "#1e293b",
-  INACTIVE: "#94a3b8",
-  ABANDONED: "#475569",
+  ACTIVE: "#0a0a0a",
+  INACTIVE: "#a3a3a3",
+  ABANDONED: "#404040",
   RECLAMATION_COMPLETED: "#65a30d",
-  PROPOSED_NEVER_REALIZED: "#cbd5e1",
+  PROPOSED_NEVER_REALIZED: "#d4d4d4",
 };
 
 function SectionTitle({ title, subtitle }) {
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 8 }}>
       <div
+        className="font-mono"
         style={{
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: "#475569",
+          fontSize: 9,
+          fontWeight: 500,
+          color: "var(--ink-3)",
           letterSpacing: "0.14em",
           textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        {title}
+        <span>{title}</span>
+        <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
       </div>
       {subtitle ? (
-        <div
-          style={{
-            fontSize: 9.5,
-            color: "#94a3b8",
-            fontStyle: "italic",
-            marginTop: 4,
-            letterSpacing: "0.02em",
-            lineHeight: 1.55,
-          }}
-        >
+        <div style={{ fontSize: 9.5, color: "var(--ink-4)", marginTop: 4, lineHeight: 1.55 }}>
           {subtitle}
         </div>
       ) : null}
@@ -61,63 +56,40 @@ function CollieryRow({ rank, item, onPick }) {
       onClick={() => onPick?.(item.id)}
       style={{
         display: "grid",
-        gridTemplateColumns: "20px 1fr auto",
+        gridTemplateColumns: "18px 1fr auto",
         alignItems: "center",
         gap: 8,
         width: "100%",
         textAlign: "left",
-        padding: "7px 6px",
+        padding: "6px 4px",
         background: "transparent",
         border: "none",
-        borderBottom: "1px solid rgba(15,23,42,0.04)",
+        borderBottom: "1px solid var(--hairline-soft)",
         cursor: "pointer",
         fontSize: 11,
+        fontFamily: "inherit",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "rgba(15,23,42,0.04)")
-      }
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.03)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <span
-        style={{
-          fontSize: 10,
-          color: "#cbd5e1",
-          fontWeight: 500,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
+      <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-5)", fontVariantNumeric: "tabular-nums" }}>
         {rank}
       </span>
-      <span
-        style={{
-          color: "#0f172a",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          minWidth: 0,
-        }}
-      >
+      <span style={{ color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
         <span
           style={{
             display: "inline-block",
             width: 6,
             height: 6,
             borderRadius: 1,
-            background: STATUS_COLOR[item.status] || "#9ca3af",
+            background: STATUS_COLOR[item.status] || "var(--ink-4)",
             marginRight: 6,
             verticalAlign: "middle",
           }}
         />
         {item.name}
       </span>
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: "#475569",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
+      <span className="font-mono" style={{ fontSize: 10, fontWeight: 600, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
         {item.score}
       </span>
     </button>
@@ -132,31 +104,23 @@ function HarmRow({ rank, item, onPick }) {
       onClick={() => onPick?.(item.id)}
       style={{
         display: "grid",
-        gridTemplateColumns: "20px 52px 1fr auto",
+        gridTemplateColumns: "18px 48px 1fr auto",
         alignItems: "center",
         gap: 8,
         width: "100%",
         textAlign: "left",
-        padding: "7px 6px",
+        padding: "6px 4px",
         background: "transparent",
         border: "none",
-        borderBottom: "1px solid rgba(15,23,42,0.04)",
+        borderBottom: "1px solid var(--hairline-soft)",
         cursor: "pointer",
         fontSize: 11,
+        fontFamily: "inherit",
       }}
-      onMouseEnter={(e) =>
-        (e.currentTarget.style.background = "rgba(15,23,42,0.04)")
-      }
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.03)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <span
-        style={{
-          fontSize: 10,
-          color: "#cbd5e1",
-          fontWeight: 500,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
+      <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-5)", fontVariantNumeric: "tabular-nums" }}>
         {rank}
       </span>
       <span
@@ -165,33 +129,19 @@ function HarmRow({ rank, item, onPick }) {
           fontWeight: 700,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          background: SEVERITY_BG[sev] || "#94a3b8",
+          background: SEVERITY_BG[sev] || "var(--ink-4)",
           color: SEVERITY_FG[sev] || "#fff",
-          padding: "2px 4px",
-          borderRadius: 3,
+          padding: "2px 6px",
+          borderRadius: 999,
           textAlign: "center",
         }}
       >
         {sev}
       </span>
-      <span
-        style={{
-          color: "#0f172a",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          minWidth: 0,
-        }}
-      >
+      <span style={{ color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
         {item.name}
       </span>
-      <span
-        style={{
-          fontSize: 9.5,
-          color: "#94a3b8",
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
+      <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-4)", fontVariantNumeric: "tabular-nums" }}>
         {item.flow_gpm != null ? `${item.flow_gpm} gpm` : "—"}
       </span>
     </button>
@@ -203,8 +153,11 @@ function TopKList({ title, subtitle, items, kind, onPick }) {
     return (
       <div style={{ marginTop: 16 }}>
         <SectionTitle title={title} subtitle={subtitle} />
-        <div style={{ fontSize: 10.5, color: "#94a3b8", padding: "6px 0" }}>
-          Loading…
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+          <span className="font-mono" style={{ fontSize: 9.5, color: "var(--ink-4)", letterSpacing: "0.14em", textTransform: "uppercase" }}>Loading</span>
+          <span className="loading-dot" />
+          <span className="loading-dot" />
+          <span className="loading-dot" />
         </div>
       </div>
     );

@@ -158,21 +158,25 @@ function App() {
     [scoredCollieries],
   );
 
-  // AMD source 强度热力图用：每个 source 一个 weight = harm severity weight
-  // 注：harm.id = "harm-{source.id}"，所以从 allHarms 反推 source 的 severity
+  // AMD source 强度热力图用：每个 source 一个 weight = harm severity weight。
+  // 没有关联 harm 的 source 也纳入，给一个基础权重 0.4，确保全地图都有热力覆盖。
   const scoredAmdSources = useMemo(() => {
-    const points = [];
+    const scored = new Map();
     for (const h of allHarms) {
       const w = SEVERITY_WEIGHT[h.severity] || 0;
       if (w === 0) continue;
       const sid = h.pollution_source_id;
       if (!sid) continue;
-      // pollution_source 的 lat/lon 在 harm 里没有；MapView 自己有 sources 列表
-      // 所以这里只 export id+weight，MapView 收到后自己 join 坐标
-      points.push({ id: sid, weight: w, severity: h.severity });
+      scored.set(sid, { id: sid, weight: w, severity: h.severity });
     }
-    return points;
-  }, [allHarms]);
+    // unregistered sources: baseline weight so they still show on the heatmap
+    for (const s of allSources) {
+      if (!scored.has(s.id)) {
+        scored.set(s.id, { id: s.id, weight: 0.4, severity: null });
+      }
+    }
+    return Array.from(scored.values());
+  }, [allHarms, allSources]);
 
   // Top-K harm：按 (severity_rank desc, flow_gpm desc) 字典序
   const topHarms = useMemo(() => {

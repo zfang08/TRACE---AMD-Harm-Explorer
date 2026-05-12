@@ -14,27 +14,11 @@
     />
 
     <style>
-      html,
-      body,
-      #root {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
-        font-feature-settings: "tnum" on, "ss01" on, "cv11" on;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        color: #0a0a0a;
-        letter-spacing: -0.005em;
-        line-height: 1.5;
-        background: #fafafa;
-      }
-      button,
-      input,
-      select,
-      textarea {
-        font-family: inherit;
+      /* Minimal pre-paint baseline — avoids flash before styles.css loads */
+      html, body, #root {
+        margin: 0; padding: 0; height: 100%;
+        font-family: "Inter", system-ui, sans-serif;
+        background: #fafafa; color: #0a0a0a;
       }
     </style>
   </head>

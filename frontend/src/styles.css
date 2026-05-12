@@ -84,12 +84,24 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--ink);
   background: var(--bg-2);
   font-feature-settings: "tnum" on, "ss01" on, "cv11" on;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.005em;
+}
+
+/* Ensure form controls inherit the page font — browser defaults vary */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
 }
 
 /* ───── Utility: type ───── */
@@ -176,6 +188,7 @@ body {
 .pill-btn:hover {
   border-color: var(--hairline-strong);
   background: var(--bg);
+  transform: translateY(-0.5px);
 }
 .pill-btn[data-active="true"] {
   background: var(--ink);
@@ -231,6 +244,42 @@ body {
 }
 .sidebar-scroll::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ───── Loading dots ───── */
+@keyframes trace-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+.loading-dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  animation: trace-blink 1.1s ease-in-out infinite;
+  vertical-align: middle;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.18s; }
+.loading-dot:nth-child(3) { animation-delay: 0.36s; }
+
+/* ───── Mapbox popup — override to match design system ───── */
+.mapboxgl-popup-content {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.04),
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 8px 22px -10px rgba(0, 0, 0, 0.12) !important;
+  padding: 9px 12px !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  pointer-events: none !important;
+}
+/* hide the arrow tip — floating card is cleaner */
+.mapboxgl-popup-tip {
+  display: none !important;
 }
 
 /* ───── Map cursor — crosshair for "instrument" feel ───── */

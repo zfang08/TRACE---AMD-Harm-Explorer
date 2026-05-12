@@ -1,21 +1,19 @@
-
 import React from "react";
 
 const SEVERITY_BG = {
-  extreme: "#7f1d1d",
-  high: "#b91c1c",
-  medium: "#dc2626",
+  extreme: "#7a1e10",
+  high: "#b9341e",
+  medium: "#b9341e",
   low: "#fda4af",
 };
 const SEVERITY_FG = {
   extreme: "#ffffff",
   high: "#ffffff",
   medium: "#ffffff",
-  low: "#7f1d1d",
+  low: "#7a1e10",
 };
 
 function CollieryPanel({ colliery, onHarmSelect }) {
-  // linked_harms is injected server-side as [{id, name, severity}, ...]
   const linkedHarms = colliery?.linked_harms || [];
 
   return (
@@ -25,132 +23,114 @@ function CollieryPanel({ colliery, onHarmSelect }) {
           margin: 0,
           fontSize: 13.5,
           fontWeight: 500,
-          color: "#0f172a",
+          color: "var(--ink)",
           lineHeight: 1.4,
-          letterSpacing: "0.01em",
         }}
       >
         {colliery?.name || "—"}
       </h2>
       {colliery?.operator ? (
-        <p
-          style={{
-            margin: "5px 0 0",
-            fontSize: 11,
-            fontStyle: "italic",
-            color: "#64748b",
-            lineHeight: 1.55,
-          }}
-        >
+        <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--ink-3)", lineHeight: 1.55 }}>
           {colliery.operator}
         </p>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto 1fr",
-          gap: "6px 12px",
-          fontSize: 11,
-          marginTop: 14,
-        }}
-      >
-        <strong style={{ color: "#475569" }}>Status</strong>
-        <span style={{ color: "#0f172a" }}>{colliery?.status || "—"}</span>
-      </div>
-
-      <div
-        style={{
-          marginTop: 20,
-          fontSize: 9.5,
-          fontWeight: 600,
-          color: "#64748b",
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-        }}
-      >
-        Linked AMD harms{" "}
-        <span style={{ color: "#cbd5e1", fontWeight: 500 }}>
-          ({linkedHarms.length})
+      <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="font-mono" style={{ fontSize: 9, color: "var(--ink-4)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Status
+        </span>
+        <span className="pill-badge font-mono" style={{ fontSize: 10 }}>
+          {colliery?.status || "—"}
         </span>
       </div>
 
-      {linkedHarms.length === 0 ? (
-        <p
+      <div style={{ marginTop: 20 }}>
+        <div
+          className="font-mono"
           style={{
-            color: "#94a3b8",
-            fontSize: 11,
-            fontStyle: "italic",
-            marginTop: 8,
-            lineHeight: 1.55,
+            fontSize: 9,
+            fontWeight: 500,
+            color: "var(--ink-3)",
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            marginBottom: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          No AMD harms linked. (No registered AMD discharge within a 2 km
-          radius of this colliery.)
-        </p>
-      ) : (
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: "8px 0 0",
-          }}
-        >
-          {linkedHarms.map((h) => {
-            const sev = h.severity || "low";
-            return (
-              <li key={h.id} style={{ marginBottom: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => onHarmSelect(h.id)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    background: "transparent",
-                    border: "1px solid rgba(15,23,42,0.12)",
-                    borderRadius: 6,
-                    padding: "6px 9px",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    textAlign: "left",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <span
+          <span>Linked AMD harms</span>
+          <span className="pill-badge" style={{ fontSize: 8, padding: "1px 6px", lineHeight: 1.6 }}>
+            {linkedHarms.length}
+          </span>
+          <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
+        </div>
+
+        {linkedHarms.length === 0 ? (
+          <p style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 8, lineHeight: 1.55 }}>
+            No AMD harms linked. (No registered AMD discharge within a 2 km radius of this colliery.)
+          </p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0" }}>
+            {linkedHarms.map((h) => {
+              const sev = h.severity || "low";
+              return (
+                <li key={h.id} style={{ marginBottom: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => onHarmSelect(h.id)}
                     style={{
-                      display: "inline-block",
-                      background: SEVERITY_BG[sev] || "#94a3b8",
-                      color: SEVERITY_FG[sev] || "#ffffff",
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      fontSize: 8.5,
-                      fontWeight: 700,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      flex: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      width: "100%",
+                      background: "var(--surface-quiet)",
+                      border: "1px solid var(--hairline)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "7px 10px",
+                      cursor: "pointer",
+                      fontSize: 11,
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      transition: "background 160ms var(--ease-out), border-color 160ms var(--ease-out)",
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg)"; e.currentTarget.style.borderColor = "var(--hairline-strong)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface-quiet)"; e.currentTarget.style.borderColor = "var(--hairline)"; }}
                   >
-                    {sev}
-                  </span>
-                  <span
-                    style={{
-                      color: "#0f172a",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      minWidth: 0,
-                    }}
-                  >
-                    {h.name || h.id}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        background: SEVERITY_BG[sev] || "var(--ink-4)",
+                        color: SEVERITY_FG[sev] || "#ffffff",
+                        padding: "2px 7px",
+                        borderRadius: 999,
+                        fontSize: 8.5,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        flex: "none",
+                      }}
+                    >
+                      {sev}
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--ink)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        minWidth: 0,
+                      }}
+                    >
+                      {h.name || h.id}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
