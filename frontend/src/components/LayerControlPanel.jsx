@@ -10,7 +10,7 @@ import React, { useEffect, useState } from "react";
  *   is3D, onToggle3D — pure camera tilt control
  */
 
-const PANEL_WIDTH_EXPANDED = 220;
+const PANEL_WIDTH_EXPANDED = 190;
 const PANEL_WIDTH_COLLAPSED = 80;
 // 慢一点更稳重，跟镜头入场 (~2.2s) 的节奏对齐；超过 600 会显得拖
 const ANIM_MS = 580;
@@ -194,13 +194,13 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
   const isInteractive = !!meta.subFilterKey;
 
   return (
-    <div style={{ padding: "12px 14px", borderTop: "1px solid var(--hairline-soft)" }}>
+    <div style={{ padding: "8px 12px", borderTop: "1px solid var(--hairline-soft)" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          fontSize: 11.5,
+          gap: 8,
+          fontSize: 10.5,
           fontWeight: 500,
           letterSpacing: "-0.005em",
           color: "var(--ink)",
@@ -214,9 +214,9 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
             color: "var(--ink-3)",
             fontWeight: 500,
             fontVariantNumeric: "tabular-nums",
-            fontSize: 9.5,
+            fontSize: 8.5,
             letterSpacing: "0.01em",
-            padding: "2px 7px",
+            padding: "1px 6px",
             border: "1px solid var(--hairline)",
             borderRadius: 999,
             background: "var(--surface-quiet)",
@@ -229,10 +229,10 @@ function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onCh
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 5,
-          marginTop: 7,
-          marginLeft: 34,
-          fontSize: 9.5,
+          gap: 4,
+          marginTop: 5,
+          marginLeft: 32,
+          fontSize: 9,
           color: "var(--ink-2)",
           lineHeight: 1.5,
           opacity: !on ? 0.4 : 1,
@@ -294,7 +294,7 @@ function ViewModeRow({ is3D, onToggle3D }) {
   return (
     <div
       style={{
-        padding: "12px 14px 14px",
+        padding: "8px 12px 10px",
         borderBottom: "1px solid var(--hairline-soft)",
       }}
     >
@@ -421,7 +421,7 @@ function LayerControlPanel({
           width: "100%",
           background: "transparent",
           border: "none",
-          padding: visiblyCollapsed ? "5px 10px 5px 20px" : "10px 14px",
+          padding: visiblyCollapsed ? "5px 10px 5px 20px" : "8px 12px",
           textAlign: "left",
           cursor: "pointer",
           display: "flex",
@@ -450,7 +450,7 @@ function LayerControlPanel({
         <span
           className="font-mono"
           style={{
-            fontSize: visiblyCollapsed ? 9.5 : 11.5,
+            fontSize: visiblyCollapsed ? 9.5 : 10.5,
             fontWeight: 500,
             letterSpacing: visiblyCollapsed ? "0.04em" : "-0.01em",
             lineHeight: 1,

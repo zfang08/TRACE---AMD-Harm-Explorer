@@ -28,16 +28,16 @@ function VizToggle({ on, label, color, hint, onClick }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: 8,
         width: "100%",
-        padding: "9px 13px",
-        marginBottom: 6,
+        padding: "7px 11px",
+        marginBottom: 5,
         background: on ? "var(--ink)" : "var(--surface-strong)",
         color: on ? "var(--bg)" : "var(--ink)",
         border: `1px solid ${on ? "var(--ink)" : "var(--hairline)"}`,
         borderRadius: 999,
         cursor: "pointer",
-        fontSize: 11,
+        fontSize: 10.5,
         fontWeight: 500,
         letterSpacing: "-0.005em",
         transition:
@@ -298,16 +298,16 @@ function Sidebar({
       <div
         style={{
           color: "var(--ink-2)",
-          fontSize: 11.5,
+          fontSize: 10.5,
           lineHeight: 1.6,
-          padding: "16px 14px 20px",
+          padding: "12px 12px 16px",
         }}
       >
         <h2
           style={{
-            margin: "0 0 10px",
+            margin: "0 0 8px",
             color: "var(--ink)",
-            fontSize: 19,
+            fontSize: 16,
             lineHeight: 1.15,
             letterSpacing: "-0.025em",
             fontWeight: 500,
@@ -337,9 +337,9 @@ function Sidebar({
         <p
           style={{
             color: "var(--ink-3)",
-            fontSize: 11.5,
-            marginTop: 10,
-            marginBottom: 22,
+            fontSize: 10.5,
+            marginTop: 8,
+            marginBottom: 16,
             letterSpacing: "-0.005em",
             lineHeight: 1.55,
           }}
