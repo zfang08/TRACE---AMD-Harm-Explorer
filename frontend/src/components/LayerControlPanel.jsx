@@ -21,12 +21,11 @@ const LAYER_LEGENDS = {
     label: "Collieries",
     shape: "house",
     description: "PA DEP coal mining permit points",
+    subFilterKey: "collieryStatus",
     chips: [
-      { color: "#0a0a0a", label: "Active" },
-      { color: "#a3a3a3", label: "Inactive" },
-      { color: "#404040", label: "Abandoned" },
-      { color: "#65a30d", label: "Reclaimed" },
-      { color: "#e2e8f0", label: "Proposed" },
+      { color: "#0a0a0a", label: "Active",   key: "active"   },
+      { color: "#a3a3a3", label: "Inactive", key: "inactive" },
+      { color: "#65a30d", label: "Reclaimed", key: "reclaimed" },
     ],
   },
   stations: {
@@ -42,11 +41,11 @@ const LAYER_LEGENDS = {
     label: "AMD discharge",
     shape: "droplet",
     description: "PA DEP AML inventory · severity from data",
+    subFilterKey: "sourceSeverity",
     chips: [
-      { color: "#7a1e10", label: "Extreme" },
-      { color: "#b9341e", label: "High" },
-      { color: "#b9341e", label: "Medium" },
-      { color: "#fda4af", label: "Low" },
+      { color: "#7a1e10", label: "Extreme + High", key: "extremeHigh" },
+      { color: "#b9341e", label: "Medium",         key: "medium"      },
+      { color: "#fda4af", label: "Low",            key: "low"         },
     ],
   },
   streams: {
@@ -190,15 +189,12 @@ function HairlineToggle({ on, onChange }) {
   );
 }
 
-function LayerRow({ layerKey, on, count, onChange }) {
+function LayerRow({ layerKey, on, count, subFilter, subCounts, onSubFilter, onChange }) {
   const meta = LAYER_LEGENDS[layerKey];
+  const isInteractive = !!meta.subFilterKey;
+
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        borderTop: "1px solid var(--hairline-soft)",
-      }}
-    >
+    <div style={{ padding: "12px 14px", borderTop: "1px solid var(--hairline-soft)" }}>
       <div
         style={{
           display: "flex",
@@ -251,26 +247,67 @@ function LayerRow({ layerKey, on, count, onChange }) {
           fontSize: 9.5,
           color: "var(--ink-2)",
           lineHeight: 1.5,
+          opacity: !on ? 0.4 : 1,
+          transition: "opacity 200ms var(--ease-out)",
+          pointerEvents: !on ? "none" : "auto",
         }}
       >
-        {meta.chips.map((c) => (
-          <span
-            key={c.label}
-            style={{
-              whiteSpace: "nowrap",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "2px 8px 2px 6px",
-              border: "1px solid var(--hairline)",
-              borderRadius: 999,
-              background: "var(--surface-quiet)",
-            }}
-          >
-            <Chip color={c.color} shape={meta.shape} />
-            {c.label}
-          </span>
-        ))}
+        {meta.chips.map((c) => {
+          const active = !isInteractive || (subFilter?.[c.key] !== false);
+          return isInteractive ? (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onSubFilter?.(meta.subFilterKey, c.key, !active)}
+              style={{
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "2px 8px 2px 6px",
+                border: `1px solid ${active ? "var(--hairline-strong)" : "var(--hairline)"}`,
+                borderRadius: 999,
+                background: active ? "var(--surface-strong)" : "var(--surface-quiet)",
+                cursor: "pointer",
+                opacity: active ? 1 : 0.38,
+                transition: "opacity 160ms var(--ease-out), border-color 160ms var(--ease-out), background 160ms var(--ease-out)",
+              }}
+            >
+              <Chip color={active ? c.color : "var(--ink-5)"} shape={meta.shape} />
+              {c.label}
+              {subCounts?.[c.key] != null && (
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: 8.5,
+                    color: "var(--ink-4)",
+                    fontVariantNumeric: "tabular-nums",
+                    marginLeft: 2,
+                  }}
+                >
+                  {subCounts[c.key].toLocaleString()}
+                </span>
+              )}
+            </button>
+          ) : (
+            <span
+              key={c.label}
+              style={{
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "2px 8px 2px 6px",
+                border: "1px solid var(--hairline)",
+                borderRadius: 999,
+                background: "var(--surface-quiet)",
+              }}
+            >
+              <Chip color={c.color} shape={meta.shape} />
+              {c.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -369,7 +406,6 @@ function LayerControlPanel({
   onToggle3D,
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  // 进场动画：同 Sidebar 的策略，首帧强制 collapsed，下一帧切到真实状态
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setHasMounted(true));
@@ -377,8 +413,14 @@ function LayerControlPanel({
   }, []);
   const visiblyCollapsed = !hasMounted || collapsed;
 
-  const setLayer = (layer, on) => {
-    onChange({ ...visibleLayers, [layer]: on });
+  const setLayer = (layer, on) => onChange({ ...visibleLayers, [layer]: on });
+
+  // sub-filter toggle: onChange({ ...visibleLayers, collieryStatus: { ...cur, [key]: val } })
+  const setSubFilter = (groupKey, key, val) => {
+    onChange({
+      ...visibleLayers,
+      [groupKey]: { ...(visibleLayers[groupKey] || {}), [key]: val },
+    });
   };
 
   return (
@@ -411,7 +453,6 @@ function LayerControlPanel({
           alignItems: "center",
           gap: 10,
           color: "var(--ink)",
-          fontFamily: "inherit",
         }}
       >
         <span
@@ -429,15 +470,7 @@ function LayerControlPanel({
             <path d="M2 1.5l3 2.5-3 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </span>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: "-0.015em",
-            lineHeight: 1,
-            color: "var(--ink)",
-          }}
-        >
+        <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1, color: "var(--ink)" }}>
           Legend
         </span>
         <span
@@ -470,13 +503,14 @@ function LayerControlPanel({
         }}
         aria-hidden={visiblyCollapsed}
       >
-        {onToggle3D ? (
-          <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} />
-        ) : null}
+        {onToggle3D ? <ViewModeRow is3D={is3D} onToggle3D={onToggle3D} /> : null}
         <LayerRow
           layerKey="collieries"
           on={visibleLayers.collieries}
           count={counts?.collieries}
+          subFilter={visibleLayers.collieryStatus}
+          subCounts={counts?.collieryStatus}
+          onSubFilter={setSubFilter}
           onChange={setLayer}
         />
         <LayerRow
@@ -489,6 +523,9 @@ function LayerControlPanel({
           layerKey="sources"
           on={visibleLayers.sources}
           count={counts?.sources}
+          subFilter={visibleLayers.sourceSeverity}
+          subCounts={counts?.sourceSeverity}
+          onSubFilter={setSubFilter}
           onChange={setLayer}
         />
         <LayerRow

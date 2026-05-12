@@ -24,6 +24,7 @@ const SEVERITY_WEIGHT = { extreme: 4, high: 3, medium: 2, low: 1 };
 const TOP_K = 8;
 // 多源粒子模拟最大同时参与的 AMD 数（含 anchor）。粒子总预算在 MapView 控制。
 const MAX_SIM_SOURCES = 30;
+const INACTIVE_STATUSES = ["INACTIVE", "ABANDONED", "PROPOSED_NEVER_REALIZED"];
 
 function App() {
   // analysisFocus = { kind: "colliery"|"station"|"pollution_source"|"segment", id }
@@ -36,8 +37,10 @@ function App() {
 
   const [visibleLayers, setVisibleLayers] = useState({
     collieries: true,
+    collieryStatus: { active: true, inactive: true, reclaimed: true },
     stations: true,
     sources: true,
+    sourceSeverity: { extremeHigh: true, medium: true, low: true },
     streams: true,
   });
 
@@ -324,11 +327,25 @@ function App() {
   };
   const toggleAddMode = () => setAddMode((v) => !v);
 
+  const collieryStatusCounts = useMemo(() => ({
+    active:   searchIndex.collieries.filter((c) => c.status === "ACTIVE").length,
+    inactive: searchIndex.collieries.filter((c) => INACTIVE_STATUSES.includes(c.status)).length,
+    reclaimed: searchIndex.collieries.filter((c) => c.status === "RECLAMATION_COMPLETED").length,
+  }), [searchIndex.collieries]);
+
+  const sourceSeverityCounts = useMemo(() => ({
+    extremeHigh: searchIndex.harms.filter((h) => h.severity === "extreme" || h.severity === "high").length,
+    medium: searchIndex.harms.filter((h) => h.severity === "medium").length,
+    low:    searchIndex.harms.filter((h) => h.severity === "low").length,
+  }), [searchIndex.harms]);
+
   const counts = {
     collieries: searchIndex.collieries.length,
+    collieryStatus: collieryStatusCounts,
     stations: searchIndex.stations.length,
-    sources: searchIndex.harms.length, // 1:1 对应 pollution source
-    streams: 20033, // 静态：data/final/stream_segments.geojson
+    sources: searchIndex.harms.length,
+    sourceSeverity: sourceSeverityCounts,
+    streams: 20033,
   };
 
   return (

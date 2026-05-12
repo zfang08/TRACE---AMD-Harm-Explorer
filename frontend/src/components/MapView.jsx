@@ -1290,6 +1290,52 @@ function MapView({
     setVis(ACTIVE_PATH_LAYER_ID, visibleLayers.streams);
   }, [visibleLayers, layersReady, vizColliery, vizAmd]);
 
+  // ============= 3a-2. sub-layer status / severity filters =============
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !layersReady) return;
+
+    const cs = visibleLayers.collieryStatus || {};
+    const ss = visibleLayers.sourceSeverity  || {};
+    const INACTIVE = ["INACTIVE", "ABANDONED", "PROPOSED_NEVER_REALIZED"];
+
+    if (map.getLayer(COLL_LAYER_ID)) {
+      const statuses = [
+        ...(cs.active    ? ["ACTIVE"]              : []),
+        ...(cs.inactive  ? INACTIVE                : []),
+        ...(cs.reclaimed ? ["RECLAMATION_COMPLETED"] : []),
+      ];
+      map.setFilter(
+        COLL_LAYER_ID,
+        statuses.length === 0
+          ? ["==", ["literal", false], ["literal", true]]
+          : statuses.length === 5
+          ? null
+          : ["in", ["get", "status"], ["literal", statuses]],
+      );
+    }
+
+    if (map.getLayer(SRC_LAYER_ID)) {
+      const sevs = [
+        ...(ss.extremeHigh ? ["extreme", "high"] : []),
+        ...(ss.medium      ? ["medium"]           : []),
+        ...(ss.low         ? ["low"]              : []),
+      ];
+      map.setFilter(
+        SRC_LAYER_ID,
+        sevs.length === 0
+          ? ["==", ["literal", false], ["literal", true]]
+          : sevs.length === 4
+          ? null
+          : [
+              "any",
+              ["in", ["get", "severity"], ["literal", sevs]],
+              ["!", ["in", ["get", "severity"], ["literal", ["extreme", "high", "medium", "low"]]]],
+            ],
+      );
+    }
+  }, [visibleLayers, layersReady]);
+
   // ============= 3b. evidence chain 动画 =============
   // 触发：analysisFocus = pollution_source 且 relatedIds.colliery_ids 非空。
   // 动画：①矿场→排放点虚线淡入，②白色脉冲沿下游路径扫过，③整体淡出。
