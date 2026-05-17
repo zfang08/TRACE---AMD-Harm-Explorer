@@ -1,3 +1,6 @@
+# EB 打包排除规则（存在此文件时 EB 不读 .gitignore，改读这里）
+# frontend/dist/ 故意不排除 —— EB 需要它来托管前端
+
 # Python
 .venv/
 __pycache__/
@@ -6,24 +9,23 @@ __pycache__/
 *.pyd
 *.egg-info/
 
-# Node / Vite
+# Node / Vite（源码和缓存不需要，dist/ 保留）
 node_modules/
-frontend/dist/
 frontend/.vite/
 .vite/
 
-# Environment files (contain secrets — Mapbox token)
+# Environment files
 .env
 .env.local
 .env.*.local
 
-# Data pipeline intermediates (~100MB, regenerable from data/ScraperFiles/*.py)
+# Data pipeline intermediates
 data/newData/
 
-# Personal narrative drafts — not part of the app
+# Personal narrative drafts
 Phase1/
 
-# Internal design docs / Claude guidance (kept locally, not published)
+# Internal design docs
 CLAUDE.md
 ProjectPlan.md
 SIMULATION.md
@@ -48,3 +50,6 @@ desktop.ini
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Git
+.git/
